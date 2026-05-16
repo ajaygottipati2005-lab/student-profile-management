@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modify Student</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: #764ba2;
+        }
+
+        .students-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .students-table thead {
+            background: #667eea;
+            color: white;
+        }
+
+        .students-table th,
+        .students-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .students-table tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        .edit-btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+            margin-right: 5px;
+        }
+
+        .edit-btn:hover {
+            background: #218838;
+        }
+
+        .delete-btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .no-students {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin_dashboard" class="back-link">← Back to Dashboard</a>
+        <h1>Modify Student Profile</h1>
+
+        <div style="margin-bottom: 20px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+            <a href="/promote_all_students" class="edit-btn" style="background:#007bff;">Promote All Students</a>
+            <span style="color:#555; font-size:14px;">Click once to promote every student to the next semester or year.</span>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search by Roll Number or Name...">
+        </div>
+
+        {% if students %}
+        <table class="students-table">
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Section</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="studentList">
+                {% for student in students %}
+                <tr class="student-row" data-roll="{{ student['roll_number'] }}" data-name="{{ student['name'] }}">
+                    <td>{{ student['roll_number'] }}</td>
+                    <td>{{ student['name'] }}</td>
+                    <td>{{ student['department'] }}</td>
+                    <td>{{ student['year'] }}</td>
+                    <td>{{ student['semester'] }}</td>
+                    <td>{{ student['section'] }}</td>
+                    <td>
+                        <a href="/edit_student/{{ student['roll_number'] }}" class="edit-btn">Edit</a>
+                        <button class="delete-btn" onclick="deleteStudent('{{ student['roll_number'] }}', '{{ student['name'] }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-students">
+            <p>❌ No students found in the database.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const studentList = document.getElementById('studentList');
+
+        if (searchInput && studentList) {
+            searchInput.addEventListener('keyup', function() {
+                const filter = this.value.toLowerCase();
+                const rows = studentList.querySelectorAll('.student-row');
+
+                rows.forEach(row => {
+                    const roll = row.dataset.roll.toLowerCase();
+                    const name = row.dataset.name.toLowerCase();
+                    
+                    if (roll.includes(filter) || name.includes(filter)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        function deleteStudent(rollNumber, studentName) {
+            if (confirm(`⚠️ Are you sure you want to delete ${studentName} (${rollNumber})?\n\nThis action cannot be undone.`)) {
+                window.location.href = `/delete_student/${rollNumber}`;
+            }
+        }
+    </script>
+</body>
+</html>

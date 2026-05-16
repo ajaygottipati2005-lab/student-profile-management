@@ -1,0 +1,37 @@
+{% if success_message %}
+    <div class="success-message">
+        <p>{{ success_message }}</p>
+        <a href="/add_student" class="button">Add One More Student</a>
+    </div>
+{% endif %}
+
+<form action="/save_student" method="POST">
+
+    <input name="roll" placeholder="Roll Number">
+    <input name="name" placeholder="Name">
+    <input name="password" placeholder="Password">
+    <input name="department" placeholder="Department">
+    <input name="course" placeholder="Course">
+    <input name="age" placeholder="Age">
+    <input name="section" placeholder="Section">
+    <input name="phone" type="tel" placeholder="Student Phone Number">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <select name="year" required>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+        </select>
+        <select name="semester" required>
+            <option value="1">Semester 1</option>
+            <option value="2">Semester 2</option>
+        </select>
+    </div>
+    <input name="father" placeholder="Father Name">
+    <input name="father_phone" type="tel" placeholder="Father Phone Number">
+    <input name="mother" placeholder="Mother Name">
+    <input name="mother_phone" type="tel" placeholder="Mother Phone Number">
+    <input name="address" placeholder="Address">
+
+    <button type="submit">Save</button>
+</form>

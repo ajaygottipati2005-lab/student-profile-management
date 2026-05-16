@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Student Profile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: #764ba2;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .student-info {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .student-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .student-photo {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 18px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            display: grid;
+            place-items: center;
+        }
+
+        .student-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .student-photo .placeholder {
+            color: #777;
+            font-size: 13px;
+            padding: 10px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        input[type="email"],
+        textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="password"]:focus,
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button[type="submit"],
+        button[type="reset"] {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex: 1;
+        }
+
+        button[type="submit"] {
+            background: #28a745;
+            color: white;
+        }
+
+        button[type="submit"]:hover {
+            background: #218838;
+        }
+
+        button[type="reset"] {
+            background: #6c757d;
+            color: white;
+        }
+
+        button[type="reset"]:hover {
+            background: #5a6268;
+        }
+
+        input[readonly] {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/modify_student" class="back-link">← Back to List</a>
+
+        <h1>Edit Student Profile</h1>
+
+        <div class="student-info">
+            {% if student['photo_filename'] %}
+            <div class="student-photo">
+                <img src="{{ url_for('static', filename='uploads/students/' ~ student['photo_filename']) }}" alt="{{ student['name'] }}">
+            </div>
+            {% else %}
+            <div class="student-photo">
+                <div class="placeholder">No profile picture uploaded</div>
+            </div>
+            {% endif %}
+
+            <p><strong>Roll Number:</strong> {{ student['roll_number'] }}</p>
+            <p><strong>Current Name:</strong> {{ student['name'] }}</p>
+            <p><strong>Year:</strong> {{ student['year'] }}</p>
+            <p><strong>Semester:</strong> {{ student['semester'] }}</p>
+            {% if student['photo_filename'] %}
+                <a href="/delete_student_dp/{{ student['roll_number'] }}" class="delete-btn" style="display:inline-block;margin-top:10px;">Delete Profile Picture</a>
+            {% endif %}
+        </div>
+
+        <form action="/update_student" method="POST" onsubmit="return confirm('Are you sure you want to update this student profile?');">
+            <input type="hidden" name="roll" value="{{ student['roll_number'] }}">
+
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" placeholder="Student Name" value="{{ student['name'] }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Password" value="{{ student['password'] }}" required>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="department">Department:</label>
+                    <input type="text" id="department" name="department" placeholder="Department" value="{{ student['department'] }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="course">Course:</label>
+                    <input type="text" id="course" name="course" placeholder="Course Name" value="{{ student['course_name'] }}" required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="year">Year:</label>
+                    <select id="year" name="year" required>
+                        <option value="1" {% if student['year'] == 1 %}selected{% endif %}>Year 1</option>
+                        <option value="2" {% if student['year'] == 2 %}selected{% endif %}>Year 2</option>
+                        <option value="3" {% if student['year'] == 3 %}selected{% endif %}>Year 3</option>
+                        <option value="4" {% if student['year'] == 4 %}selected{% endif %}>Year 4</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="semester">Semester:</label>
+                    <select id="semester" name="semester" required>
+                        <option value="1" {% if student['semester'] == 1 %}selected{% endif %}>Semester 1</option>
+                        <option value="2" {% if student['semester'] == 2 %}selected{% endif %}>Semester 2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="age">Age:</label>
+                    <input type="number" id="age" name="age" placeholder="Age" value="{{ student['age'] }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="section">Section:</label>
+                    <input type="text" id="section" name="section" placeholder="Section" value="{{ student['section'] }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Student Phone:</label>
+                <input type="tel" id="phone" name="phone" placeholder="Student Phone Number" value="{{ student['phone'] }}">
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="father">Father's Name:</label>
+                    <input type="text" id="father" name="father" placeholder="Father's Name" value="{{ student['father_name'] }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="father_phone">Father's Phone:</label>
+                    <input type="tel" id="father_phone" name="father_phone" placeholder="Father's Phone Number" value="{{ student['father_phone'] }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="mother">Mother's Name:</label>
+                    <input type="text" id="mother" name="mother" placeholder="Mother's Name" value="{{ student['mother_name'] }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="mother_phone">Mother's Phone:</label>
+                    <input type="tel" id="mother_phone" name="mother_phone" placeholder="Mother's Phone Number" value="{{ student['mother_phone'] }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address:</label>
+                <textarea id="address" name="address" placeholder="Student Address" required>{{ student['address'] }}</textarea>
+            </div>
+
+            <div class="button-group">
+                <button type="submit">Save Changes</button>
+                <button type="reset">Reset</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

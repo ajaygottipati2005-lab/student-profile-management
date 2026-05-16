@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyze Student Attendance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .filter-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .filter-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .back-button:hover {
+            background: #5a6268;
+        }
+
+        .results-section {
+            margin-top: 40px;
+        }
+
+        .results-section h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 22px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .student-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 20px;
+            transition: all 0.3s;
+            border-left: 4px solid #667eea;
+        }
+
+        .student-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .student-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .student-info h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .roll-number {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .attendance-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+            min-width: 150px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .percentage-high {
+            color: #28a745;
+        }
+
+        .percentage-medium {
+            color: #ffc107;
+        }
+
+        .percentage-low {
+            color: #dc3545;
+        }
+
+        .absent-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .absent-section h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .absent-list {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .absent-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .subject {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .absent-date {
+            color: #999;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .subjects-section {
+            margin-top: 15px;
+        }
+
+        .subjects-section h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .subject-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .subject-badge {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        .no-absent {
+            color: #28a745;
+            font-style: italic;
+            padding: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .form-group {
+                min-width: 100%;
+            }
+
+            .student-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .attendance-stats {
+                flex-direction: row;
+            }
+
+            .stat-box {
+                flex: 1;
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/staff_dashboard" class="back-button">← Back to Dashboard</a>
+        
+        <h1>📊 Analyze Student Attendance</h1>
+
+        {% if error_message %}
+            <div class="message error">{{ error_message }}</div>
+        {% endif %}
+
+        <div class="filter-section">
+            <h2>Filter Students</h2>
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="year">Year:</label>
+                        <select name="year" id="year" required>
+                            <option value="">-- Select Year --</option>
+                            {% for y in years %}
+                                <option value="{{ y }}" {% if selected.year == y|string %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="semester">Semester:</label>
+                        <select name="semester" id="semester" required>
+                            <option value="">-- Select Semester --</option>
+                            {% for s in semesters %}
+                                <option value="{{ s }}" {% if selected.semester == s|string %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="branch">Branch/Department:</label>
+                        <select name="branch" id="branch" required>
+                            <option value="">-- Select Branch --</option>
+                            {% for b in branches %}
+                                <option value="{{ b }}" {% if selected.branch == b %}selected{% endif %}>{{ b }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="section">Section:</label>
+                        <select name="section" id="section" required>
+                            <option value="">-- Select Section --</option>
+                            {% for sec in sections %}
+                                <option value="{{ sec }}" {% if selected.section == sec %}selected{% endif %}>{{ sec }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit">🔍 Analyze</button>
+                </div>
+            </form>
+        </div>
+
+        {% if analysis_data %}
+            <div class="results-section">
+                <h2>Results ({{ analysis_data|length }} Student{{ 's' if analysis_data|length != 1 else '' }})</h2>
+                
+                {% for student in analysis_data %}
+                    <div class="student-card">
+                        <div class="student-header">
+                            <div class="student-info">
+                                <h3>{{ student.name }}</h3>
+                                <span class="roll-number">Roll: {{ student.roll_number }}</span>
+                            </div>
+                            <div class="attendance-stats">
+                                <div class="stat-box">
+                                    <div class="stat-label">Attendance %</div>
+                                    <div class="stat-value {% if student.attendance_percentage >= 75 %}percentage-high{% elif student.attendance_percentage >= 60 %}percentage-medium{% else %}percentage-low{% endif %}">
+                                        {{ student.attendance_percentage }}%
+                                    </div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-label">Total Classes</div>
+                                    <div class="stat-value">{{ student.total_classes }}</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-label">Present</div>
+                                    <div class="stat-value" style="color: #28a745;">{{ student.present_count }}</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-label">Absent</div>
+                                    <div class="stat-value" style="color: #dc3545;">{{ student.absent_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if student.absent_records %}
+                            <div class="absent-section">
+                                <h4>📅 Absent Dates and Subjects:</h4>
+                                <div class="absent-list">
+                                    {% for record in student.absent_records %}
+                                        <div class="absent-item">
+                                            <span class="subject">{{ record.subject }}</span>
+                                            <span class="absent-date">- {{ record.date }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="absent-section">
+                                <div class="no-absent">✓ Perfect Attendance! No absences recorded.</div>
+                            </div>
+                        {% endif %}
+
+                        {% if student.subjects %}
+                            <div class="subjects-section">
+                                <h4>📚 Subjects:</h4>
+                                <div class="subject-list">
+                                    {% for subject in student.subjects %}
+                                        <span class="subject-badge">{{ subject }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% elif selected.year and selected.semester and selected.branch and selected.section %}
+            <div class="no-data">
+                No students found for the selected filters. Please verify your selection.
+            </div>
+        {% endif %}
+    </div>
+    <script src="/static/js/script.js"></script>
+</body>
+</html>

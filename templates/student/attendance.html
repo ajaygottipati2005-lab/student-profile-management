@@ -1,0 +1,45 @@
+﻿{% extends "student/base.html" %}
+
+{% block content %}
+    <h1>📊 Attendance Overview</h1>
+
+    <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border: 1px solid #e0e7ef; border-radius: 8px;">
+        <strong>Student:</strong> {{ student.get('name', student.get('roll_number')) }}<br>
+        <strong>Roll Number:</strong> {{ student.get('roll_number') }}<br>
+        <strong>Current Semester:</strong> Year {{ current_year }} - Semester {{ current_semester }}
+    </div>
+
+    {% if attendance_data %}
+        <table style="width:100%; border-collapse: collapse; background: white; box-shadow: 0 0 12px rgba(0,0,0,0.05);">
+            <thead>
+                <tr style="background: #2c3e50; color: white; text-align:left;">
+                    <th style="padding: 12px;">Subject</th>
+                    <th style="padding: 12px; text-align:right;">Present</th>
+                    <th style="padding: 12px; text-align:right;">Absent</th>
+                    <th style="padding: 12px; text-align:right;">Total</th>
+                    <th style="padding: 12px; text-align:right;">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in attendance_data %}
+                    <tr>
+                        <td style="padding: 12px; border-bottom: 1px solid #e8ebf0;">{{ item.subject }}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e8ebf0; text-align:right;">{{ item.present }}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e8ebf0; text-align:right;">{{ item.absent }}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e8ebf0; text-align:right;">{{ item.total }}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e8ebf0; text-align:right;">{{ item.percent }}%</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top: 20px; padding: 18px; background: #e8f4ff; border: 1px solid #b8d7ff; border-radius: 8px; font-size: 1rem;">
+            <strong>Overall Attendance for Year {{ current_year }} - Semester {{ current_semester }}:</strong> {{ overall_percentage }}%
+        </div>
+    {% else %}
+        <div style="padding: 30px; background: #fff6e5; border: 1px solid #ffe4b8; border-radius: 8px;">
+            <h2 style="margin-top: 0;">No Subjects Allocated</h2>
+            <p>No subjects have been allocated for your current semester yet. Please contact your administrator.</p>
+        </div>
+    {% endif %}
+{% endblock %}

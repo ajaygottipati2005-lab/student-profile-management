@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Student Portal</title>
+
+    <style>
+
+        body{
+            margin:0;
+            font-family: Arial;
+            background:#f4f6f9;
+        }
+
+        .sidebar{
+            width:220px;
+            height:100vh;
+            background:#2c3e50;
+            position:fixed;
+            padding-top:20px;
+        }
+
+        .sidebar h2{
+            color:white;
+            text-align:center;
+            margin-bottom:30px;
+        }
+
+        .sidebar a{
+            display:block;
+            color:white;
+            text-decoration:none;
+            padding:15px 20px;
+        }
+
+        .sidebar a:hover{
+            background:#34495e;
+        }
+
+        .content{
+            margin-left:220px;
+            padding:30px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+
+    <div class="sidebar">
+
+        <h2>Student Panel</h2>
+
+        <a href="/profile">🏠 Profile</a>
+
+        <a href="/attendance">📅 Attendance</a>
+
+        <a href="/assignments">📝 Assignments</a>
+
+        <a href="/results">📊 Results</a>
+
+        <a href="/certificate">📄 Certificate</a>
+
+        <a href="/notifications">🔔 Notifications</a>
+
+        <a href="/institution">🏫 Institution</a>
+
+        <a href="/fee_details">🏫 fee details</a>
+
+        <a href="/logout">🚪 Logout</a>
+
+    </div>
+
+
+    <!-- Main Content -->
+
+    <div class="content">
+
+        {% block content %}
+        {% endblock %}
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fee Details</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+        }
+
+        .menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            background: white;
+            border: 1px solid black;
+            padding: 10px;
+        }
+
+        .dropdown a {
+            display: block;
+            margin: 5px;
+            text-decoration: none;
+        }
+
+        .sem-buttons button {
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .fee-box {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid black;
+            display: inline-block;
+            width: 300px;
+        }
+
+        .paid {
+            background-color: green;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+        }
+
+        .not-paid {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+        }
+    </style>
+
+    <script>
+        function toggleMenu() {
+            let menu = document.getElementById("menuBox");
+            menu.style.display = (menu.style.display === "block") ? "none" : "block";
+        }
+
+        function showSemester(sem) {
+            for (let i = 1; i <= 8; i++) {
+                document.getElementById("sem" + i).style.display = "none";
+            }
+            document.getElementById("sem" + sem).style.display = "block";
+        }
+    </script>
+</head>
+
+<body>
+
+<!-- MENU BUTTON -->
+<div class="menu">
+
+    <button onclick="toggleMenu()">☰ Menu</button>
+
+    <div id="menuBox" class="dropdown">
+
+        {% for item in menu_items %}
+
+            <a href="{{ item.url }}">
+                {{ item.name }}
+            </a>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<h2>Fee Billing</h2>
+
+<div class="sem-buttons">
+    <button onclick="showSemester(1)">Sem 1</button>
+    <button onclick="showSemester(2)">Sem 2</button>
+    <button onclick="showSemester(3)">Sem 3</button>
+    <button onclick="showSemester(4)">Sem 4</button>
+    <button onclick="showSemester(5)">Sem 5</button>
+    <button onclick="showSemester(6)">Sem 6</button>
+    <button onclick="showSemester(7)">Sem 7</button>
+    <button onclick="showSemester(8)">Sem 8</button>
+</div>
+
+<!-- 🔥 ONE TEMPLATE (COPY FOR ALL SEMS) -->
+{% for i in range(1,9) %}
+<div id="sem{{i}}" class="fee-box" style="display:none;">
+    <h3>Semester {{i}}</h3>
+
+    <p>
+        Sem Fee: {{ student["Sem" ~ i ~ "_Fee"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_Fee_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_Fee_Balance"] }}
+        {% if student["Sem" ~ i ~ "_Fee_Balance"] == 0 %}
+            <button class="paid">✔ Paid</button>
+        {% else %}
+            <button class="not-paid">❌ Pending</button>
+        {% endif %}
+    </p>
+
+    <p>
+        Exam Fee: {{ student["Sem" ~ i ~ "_Exam"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_Exam_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_Exam_Balance"] }}
+    </p>
+
+    <p>
+        Books Fee: {{ student["Sem" ~ i ~ "_Books"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_Books_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_Books_Balance"] }}
+    </p>
+
+    <p>
+        CRT Fee: {{ student["Sem" ~ i ~ "_CRT"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_CRT_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_CRT_Balance"] }}
+    </p>
+
+    <p>
+        Hostel Fee: {{ student["Sem" ~ i ~ "_Hostel"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_Hostel_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_Hostel_Balance"] }}
+    </p>
+
+    <p>
+        Bus Fee: {{ student["Sem" ~ i ~ "_Bus"] }} <br>
+        Paid: {{ student["Sem" ~ i ~ "_Bus_Paid"] }} <br>
+        Balance: {{ student["Sem" ~ i ~ "_Bus_Balance"] }}
+    </p>
+
+    <hr>
+
+    <p><b>
+        Total Balance:
+        {{
+        student["Sem" ~ i ~ "_Fee_Balance"] +
+        student["Sem" ~ i ~ "_Exam_Balance"] +
+        student["Sem" ~ i ~ "_Books_Balance"] +
+        student["Sem" ~ i ~ "_CRT_Balance"] +
+        student["Sem" ~ i ~ "_Hostel_Balance"] +
+        student["Sem" ~ i ~ "_Bus_Balance"]
+        }}
+    </b></p>
+
+</div>
+{% endfor %}
+
+</body>
+</html>
