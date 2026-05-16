@@ -444,10 +444,26 @@ def admin_login():
 @app.route("/admin_login", methods=["POST"])
 def admin_login_post():
 
-    username = request.form["username"]
+    login_identifier = request.form["username"].strip()
     password = request.form["password"]
 
-    if username == "admin" and password == "admin123":
+    conn = sqlite3.connect("student.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # The same input accepts either the admin username or email address.
+    # Password/session handling stays unchanged so the existing dashboard works.
+    cursor.execute("""
+        SELECT * FROM admins
+        WHERE (username=? OR LOWER(email)=LOWER(?)) AND password=?
+    """, (login_identifier, login_identifier, password))
+
+    admin = cursor.fetchone()
+    conn.close()
+
+    # Backward-compatible fallback for installations that still rely on the
+    # original hardcoded admin credentials.
+    if admin or (login_identifier == "admin" and password == "admin123"):
 
         session["admin"] = True
 

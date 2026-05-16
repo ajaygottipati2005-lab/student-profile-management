@@ -47,6 +47,43 @@ def create_database():
     add_column_if_not_exists(cursor, "students", "semester", "INTEGER DEFAULT 1")
     add_column_if_not_exists(cursor, "students", "photo_filename", "TEXT")
 
+    # ================= ADMIN TABLE =================
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS admins (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        email TEXT UNIQUE,
+        password TEXT
+
+    )
+    """)
+
+    add_column_if_not_exists(cursor, "admins", "email", "TEXT")
+
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
+        ON admins(email)
+    """)
+
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
+        ON admins(email)
+    """)
+
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
+        ON admins(email)
+    """)
+
+    # Keep the original hardcoded admin credentials available in the database
+    # so existing username login continues to work after adding email login.
+    cursor.execute("""
+        INSERT OR IGNORE INTO admins (username, email, password)
+        VALUES (?, ?, ?)
+    """, ("admin", "admin@example.com", "admin123"))
+
     
     # ================= INSTITUTION TABLE =================
 
@@ -115,6 +152,10 @@ def create_database():
 
     )
     """)
+
+
+    conn.commit()
+    conn.close()
 
 
 if __name__ == "__main__":
