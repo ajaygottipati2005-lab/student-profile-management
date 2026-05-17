@@ -1,9 +1,4 @@
-import os
 import sqlite3
-
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("STUDENT_DB_PATH", os.path.join(BASE_DIR, "student.db"))
 
 def add_column_if_not_exists(cursor, table_name, column_name, column_def):
     cursor.execute(f"PRAGMA table_info({table_name})")
@@ -14,7 +9,7 @@ def add_column_if_not_exists(cursor, table_name, column_name, column_def):
 
 def create_database():
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("student.db")
     cursor = conn.cursor()
 
     # ================= STUDENT TABLE =================
