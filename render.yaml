@@ -3,7 +3,16 @@ services:
     name: student-management-pec
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: python database.py && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: student-management-pec-db
+          property: connectionString
+
+databases:
+  - name: student-management-pec-db
+    databaseName: studentdb
+    user: studentdb_user

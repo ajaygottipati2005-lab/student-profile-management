@@ -1,15 +1,28 @@
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 import os
-import sqlite3
+from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from datetime import date
-from database import DB_PATH, create_database
+
+load_dotenv()
+
+from database import DatabaseConfigError, DatabaseConnectionError, create_database, get_connection
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret123")
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "students")
 app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg", "gif"}
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+
+@app.errorhandler(DatabaseConfigError)
+def handle_database_config_error(error):
+    return str(error), 500
+
+
+@app.errorhandler(DatabaseConnectionError)
+def handle_database_connection_error(error):
+    return str(error), 500
 
 
 def allowed_file(filename):
@@ -37,8 +50,7 @@ def login():
     roll = request.form["roll"]
     password = request.form["password"]
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -75,8 +87,7 @@ def profile():
 
     roll = student_session.get("roll_number")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -122,8 +133,7 @@ def upload_dp():
     stored_name = f"{roll}_{int(__import__('time').time())}.{file_ext}"
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], stored_name)
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -160,8 +170,7 @@ def promote_student(roll_number):
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -203,7 +212,7 @@ def promote_all_students():
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -234,8 +243,7 @@ def delete_student_dp(roll_number):
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -274,8 +282,7 @@ def attendance():
     student_session = session.get("student")
     roll = student_session.get("roll_number")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -366,8 +373,7 @@ def fee_details():
     student_session = session.get("student")
     roll = student_session.get("roll_number")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM students WHERE roll_number=?", (roll,))
@@ -408,8 +414,7 @@ def notifications():
 @app.route("/institution")
 def institution():
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -449,7 +454,7 @@ def change_password():
 
     student = session.get("student")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -487,8 +492,7 @@ def admin_login_post():
     login_identifier = request.form["username"].strip()
     password = request.form["password"]
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     # The same input accepts either the admin username or email address.
@@ -527,8 +531,7 @@ def staff_login_post():
     staff_id = request.form["staff_id"]
     password = request.form["password"]
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -599,7 +602,7 @@ def save_student():
 
     try:
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -677,7 +680,7 @@ def save_institution():
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -742,7 +745,7 @@ def save_staff():
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -774,8 +777,7 @@ def modify_staff():
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT staff_id, name FROM staff ORDER BY staff_id")
@@ -797,8 +799,7 @@ def edit_staff(staff_id):
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -827,7 +828,7 @@ def update_staff():
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -860,7 +861,7 @@ def delete_staff(staff_id):
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -885,8 +886,7 @@ def modify_student():
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -910,8 +910,7 @@ def edit_student(roll_number):
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -943,7 +942,7 @@ def update_student():
 
     try:
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -1004,7 +1003,7 @@ def delete_student(roll_number):
 
     try:
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -1050,8 +1049,7 @@ def allocate_subjects():
     if not session.get("admin"):
         return redirect("/admin")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Get existing allocations
@@ -1095,7 +1093,7 @@ def save_allocation():
         return "❌ Please enter at least one valid subject name"
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.executemany("""
@@ -1131,8 +1129,7 @@ def staff_attendance():
     if not session.get("staff"):
         return redirect("/staff")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT DISTINCT department FROM students ORDER BY department")
@@ -1349,7 +1346,7 @@ def subject_options_api():
     if not (year and semester and branch):
         return jsonify([])
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT subject_name FROM subject_allocation WHERE year=? AND semester=? AND branch=? ORDER BY subject_name", (year, semester, branch))
     subjects = [row[0] for row in cursor.fetchall() if row[0]]
@@ -1372,7 +1369,7 @@ def section_options_api():
     if not branch:
         return jsonify([])
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT section FROM students WHERE department=? ORDER BY section", (branch,))
     sections = [row[0] for row in cursor.fetchall() if row[0]]
@@ -1390,7 +1387,7 @@ def delete_allocation(allocation_id):
         return redirect("/admin")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -1418,8 +1415,7 @@ def analyze_attendance():
     if not session.get("staff"):
         return redirect("/staff")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Get available branches and sections
@@ -1536,7 +1532,11 @@ def analyze_attendance():
 # ================= RUN APP =================
 
 if __name__ == "__main__":
-    create_database()
+    try:
+        create_database()
+    except (DatabaseConfigError, DatabaseConnectionError) as error:
+        print(error)
+        print("Flask will start, but database-backed routes need PostgreSQL configured.")
     port = int(os.environ.get("PORT", 5000))
     app.run(
         host="0.0.0.0",
