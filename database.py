@@ -1,12 +1,18 @@
+import logging
 import os
+import threading
 from urllib.parse import urlparse, urlunparse
 
 import psycopg
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv()
+
+_init_lock = threading.Lock()
+_db_initialized = False
 
 
 class DatabaseConfigError(RuntimeError):
@@ -21,15 +27,25 @@ def get_database_url():
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return database_url.strip()
+
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    dbname = os.getenv("POSTGRES_DB", "studentdb")
+
+    if user and password is not None:
+        return f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+
     return None
 
 
 def _normalize_database_url(database_url):
     if not database_url:
         raise DatabaseConfigError(
-            "DATABASE_URL is missing. For local development, create a .env file in the project "
-            "folder with: DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/studentdb. "
-            "On Render, set DATABASE_URL from your PostgreSQL database environment variables."
+            "DATABASE_URL is missing. For local development, create a .env file with "
+            "DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/studentdb. "
+            "On Render, link DATABASE_URL from your PostgreSQL service."
         )
 
     parsed = urlparse(database_url)
@@ -38,17 +54,36 @@ def _normalize_database_url(database_url):
     return urlunparse(parsed)
 
 
+class PostgresRow:
+    def __init__(self, values, description):
+        self.values = tuple(values)
+        self.columns = [column.name for column in description]
+        self.index = {column: position for position, column in enumerate(self.columns)}
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return self.values[self.index[key]]
+        return self.values[key]
+
+    def __iter__(self):
+        return iter(zip(self.columns, self.values))
+
+    def __len__(self):
+        return len(self.values)
+
+    def keys(self):
+        return self.columns
+
+
 class PostgresCursor:
     def __init__(self, cursor):
         self.cursor = cursor
 
     def execute(self, query, params=None):
-        query = query.replace("?", "%s")
         self.cursor.execute(query, params)
         return self
 
     def executemany(self, query, param_seq):
-        query = query.replace("?", "%s")
         self.cursor.executemany(query, param_seq)
         return self
 
@@ -66,8 +101,6 @@ class PostgresCursor:
 
 
 class PostgresConnection:
-    row_factory = None
-
     def __init__(self, connection):
         self.connection = connection
 
@@ -96,35 +129,18 @@ class PostgresConnection:
 
 
 def get_connection():
+    database_url = _normalize_database_url(get_database_url())
     try:
-        connection = psycopg.connect(_normalize_database_url(get_database_url()), connect_timeout=5)
+        connection = psycopg.connect(
+            database_url,
+            connect_timeout=10,
+            autocommit=False,
+        )
     except psycopg.OperationalError as error:
         raise DatabaseConnectionError(
-            "Could not connect to PostgreSQL. Make sure PostgreSQL is installed, running on "
-            "localhost:5432, the studentdb database exists, and your .env DATABASE_URL password is correct."
+            "Could not connect to PostgreSQL. Verify DATABASE_URL and that the database is reachable."
         ) from error
     return PostgresConnection(connection)
-
-
-class PostgresRow:
-    def __init__(self, values, description):
-        self.values = tuple(values)
-        self.columns = [column.name for column in description]
-        self.index = {column: position for position, column in enumerate(self.columns)}
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            return self.values[self.index[key]]
-        return self.values[key]
-
-    def __iter__(self):
-        return iter(zip(self.columns, self.values))
-
-    def __len__(self):
-        return len(self.values)
-
-    def keys(self):
-        return self.columns
 
 
 def _identifier(name):
@@ -133,181 +149,187 @@ def _identifier(name):
     return name
 
 
-def add_column_if_not_exists(cursor, table_name, column_name, column_def):
+def _add_column_if_not_exists(cursor, table_name, column_name, column_def):
     _identifier(table_name)
     _identifier(column_name)
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT column_name
         FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = %s
-    """, (table_name,))
-    columns = [row["column_name"] for row in cursor.fetchall()]
+        """,
+        (table_name,),
+    )
+    columns = {row["column_name"] for row in cursor.fetchall()}
     if column_name not in columns:
         cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
 
 
-def create_database():
-
-    conn = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # ================= STUDENT TABLE =================
-
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS students (
-
-        id SERIAL PRIMARY KEY,
-
-        roll_number TEXT UNIQUE,
-        name TEXT,
-        password TEXT,
-        department TEXT,
-        course_name TEXT,
-        age INTEGER,
-        section TEXT,
-        father_name TEXT,
-        father_phone TEXT,
-        mother_name TEXT,
-        mother_phone TEXT,
-        phone TEXT,
-        year INTEGER DEFAULT 1,
-        semester INTEGER DEFAULT 1,
-        address TEXT,
-        photo_filename TEXT
-
+def _create_tables(cursor):
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS students (
+            id SERIAL PRIMARY KEY,
+            roll_number TEXT UNIQUE,
+            name TEXT,
+            password TEXT,
+            department TEXT,
+            course_name TEXT,
+            age INTEGER,
+            section TEXT,
+            father_name TEXT,
+            father_phone TEXT,
+            mother_name TEXT,
+            mother_phone TEXT,
+            phone TEXT,
+            year INTEGER DEFAULT 1,
+            semester INTEGER DEFAULT 1,
+            address TEXT,
+            photo_filename TEXT
+        )
+        """
     )
-    """)
 
-        add_column_if_not_exists(cursor, "students", "section", "TEXT")
-        add_column_if_not_exists(cursor, "students", "father_phone", "TEXT")
-        add_column_if_not_exists(cursor, "students", "mother_phone", "TEXT")
-        add_column_if_not_exists(cursor, "students", "phone", "TEXT")
-        add_column_if_not_exists(cursor, "students", "year", "INTEGER DEFAULT 1")
-        add_column_if_not_exists(cursor, "students", "semester", "INTEGER DEFAULT 1")
-        add_column_if_not_exists(cursor, "students", "photo_filename", "TEXT")
+    _add_column_if_not_exists(cursor, "students", "section", "TEXT")
+    _add_column_if_not_exists(cursor, "students", "father_phone", "TEXT")
+    _add_column_if_not_exists(cursor, "students", "mother_phone", "TEXT")
+    _add_column_if_not_exists(cursor, "students", "phone", "TEXT")
+    _add_column_if_not_exists(cursor, "students", "year", "INTEGER DEFAULT 1")
+    _add_column_if_not_exists(cursor, "students", "semester", "INTEGER DEFAULT 1")
+    _add_column_if_not_exists(cursor, "students", "photo_filename", "TEXT")
 
-        # ================= ADMIN TABLE =================
-
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS admins (
-
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE,
-        email TEXT UNIQUE,
-        password TEXT
-
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admins (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE,
+            email TEXT,
+            password TEXT
+        )
+        """
     )
-    """)
 
-        add_column_if_not_exists(cursor, "admins", "email", "TEXT")
+    _add_column_if_not_exists(cursor, "admins", "email", "TEXT")
 
-        cursor.execute("""
+    cursor.execute(
+        """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
-        ON admins(email)
-    """)
+        ON admins (email)
+        WHERE email IS NOT NULL
+        """
+    )
 
-        cursor.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
-        ON admins(email)
-    """)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS institution (
+            id SERIAL PRIMARY KEY,
+            college_name TEXT,
+            about_college TEXT,
+            vision TEXT,
+            mission TEXT,
+            principal_message TEXT,
+            address TEXT,
+            email TEXT,
+            phone TEXT,
+            website TEXT,
+            accreditation TEXT,
+            placements TEXT
+        )
+        """
+    )
 
-        cursor.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
-        ON admins(email)
-    """)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS staff (
+            id SERIAL PRIMARY KEY,
+            staff_id TEXT UNIQUE,
+            name TEXT,
+            password TEXT
+        )
+        """
+    )
 
-        # Keep the original hardcoded admin credentials available in the database
-        # so existing username login continues to work after adding email login.
-        cursor.execute("""
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS subject_allocation (
+            id SERIAL PRIMARY KEY,
+            subject_name TEXT,
+            year INTEGER,
+            semester INTEGER,
+            branch TEXT
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS attendance (
+            id SERIAL PRIMARY KEY,
+            student_roll TEXT,
+            subject_name TEXT,
+            year INTEGER,
+            semester INTEGER,
+            branch TEXT,
+            section TEXT,
+            date TEXT,
+            status TEXT,
+            staff_id TEXT
+        )
+        """
+    )
+
+
+def _seed_default_admin(cursor):
+    cursor.execute(
+        """
         INSERT INTO admins (username, email, password)
-        VALUES (?, ?, ?)
+        VALUES (%s, %s, %s)
         ON CONFLICT (username) DO NOTHING
-    """, ("admin", "admin@example.com", "admin123"))
-
-    
-        # ================= INSTITUTION TABLE =================
-
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS institution (
-
-        id SERIAL PRIMARY KEY,
-
-        college_name TEXT,
-        about_college TEXT,
-        vision TEXT,
-        mission TEXT,
-        principal_message TEXT,
-        address TEXT,
-        email TEXT,
-        phone TEXT,
-        website TEXT,
-        accreditation TEXT,
-        placements TEXT
-
+        """,
+        ("admin", "admin@example.com", "admin123"),
     )
-    """)
 
-        # ================= STAFF TABLE =================
 
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS staff (
+def init_db(force=False):
+    """Create all application tables and seed default data if missing."""
+    global _db_initialized
 
-        id SERIAL PRIMARY KEY,
-        staff_id TEXT UNIQUE,
-        name TEXT,
-        password TEXT
+    with _init_lock:
+        if _db_initialized and not force:
+            return
 
-    )
-    """)
+        conn = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
 
-        # ================= SUBJECT ALLOCATION TABLE =================
+            _create_tables(cursor)
+            conn.commit()
 
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS subject_allocation (
+            _seed_default_admin(cursor)
+            conn.commit()
 
-        id SERIAL PRIMARY KEY,
-        subject_name TEXT,
-        year INTEGER,
-        semester INTEGER,
-        branch TEXT
+            _db_initialized = True
+            logger.info("Database initialized successfully.")
+        except Exception:
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
 
-    )
-    """)
 
-        # ================= ATTENDANCE TABLE =================
-
-        cursor.execute("""
-    CREATE TABLE IF NOT EXISTS attendance (
-
-        id SERIAL PRIMARY KEY,
-        student_roll TEXT,
-        subject_name TEXT,
-        year INTEGER,
-        semester INTEGER,
-        branch TEXT,
-        section TEXT,
-        date TEXT,
-        status TEXT,
-        staff_id TEXT
-
-    )
-    """)
-
-        conn.commit()
-    except Exception:
-        if conn:
-            conn.rollback()
-        raise
-    finally:
-        if conn:
-            conn.close()
+def create_database():
+    """Backward-compatible alias used by Procfile and older imports."""
+    init_db(force=True)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     try:
-        create_database()
+        init_db(force=True)
+        print("Database tables are ready.")
     except (DatabaseConfigError, DatabaseConnectionError) as error:
         print(error)
-        raise SystemExit(1)
+        raise SystemExit(1) from error

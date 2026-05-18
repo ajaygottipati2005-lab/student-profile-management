@@ -1,18 +1,25 @@
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 import os
+import psycopg
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from datetime import date
 
 load_dotenv()
 
-from database import DatabaseConfigError, DatabaseConnectionError, create_database, get_connection
+from database import DatabaseConfigError, DatabaseConnectionError, get_connection, init_db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret123")
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "students")
 app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg", "gif"}
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+def ensure_database_initialized():
+    try:
+        init_db()
+    except (DatabaseConfigError, DatabaseConnectionError) as error:
+        app.logger.warning("Database initialization skipped: %s", error)
 
 
 @app.errorhandler(DatabaseConfigError)
@@ -23,6 +30,11 @@ def handle_database_config_error(error):
 @app.errorhandler(DatabaseConnectionError)
 def handle_database_connection_error(error):
     return str(error), 500
+
+
+@app.before_request
+def initialize_database_before_request():
+    ensure_database_initialized()
 
 
 def allowed_file(filename):
@@ -56,7 +68,7 @@ def login():
 
     cursor.execute("""
         SELECT * FROM students
-        WHERE roll_number=? AND password=?
+        WHERE roll_number=%s AND password=%s
     """, (roll, password))
 
     student = cursor.fetchone()
@@ -93,7 +105,7 @@ def profile():
 
     cursor.execute("""
         SELECT * FROM students
-        WHERE roll_number=?
+        WHERE roll_number=%s
     """, (roll,))
 
     student = cursor.fetchone()
@@ -138,7 +150,7 @@ def upload_dp():
 
     cursor.execute("""
         SELECT photo_filename FROM students
-        WHERE roll_number=?
+        WHERE roll_number=%s
     """, (roll,))
     existing = cursor.fetchone()
 
@@ -154,8 +166,8 @@ def upload_dp():
 
     cursor.execute("""
         UPDATE students
-        SET photo_filename=?
-        WHERE roll_number=?
+        SET photo_filename=%s
+        WHERE roll_number=%s
     """, (stored_name, roll))
 
     conn.commit()
@@ -175,7 +187,7 @@ def promote_student(roll_number):
 
         cursor.execute("""
             SELECT year, semester FROM students
-            WHERE roll_number=?
+            WHERE roll_number=%s
         """, (roll_number,))
         current = cursor.fetchone()
 
@@ -193,8 +205,8 @@ def promote_student(roll_number):
 
         cursor.execute("""
             UPDATE students
-            SET year=?, semester=?
-            WHERE roll_number=?
+            SET year=%s, semester=%s
+            WHERE roll_number=%s
         """, (year, semester, roll_number))
 
         conn.commit()
@@ -248,7 +260,7 @@ def delete_student_dp(roll_number):
 
         cursor.execute("""
             SELECT photo_filename FROM students
-            WHERE roll_number=?
+            WHERE roll_number=%s
         """, (roll_number,))
         student = cursor.fetchone()
 
@@ -260,7 +272,7 @@ def delete_student_dp(roll_number):
         cursor.execute("""
             UPDATE students
             SET photo_filename=NULL
-            WHERE roll_number=?
+            WHERE roll_number=%s
         """, (roll_number,))
 
         conn.commit()
@@ -288,7 +300,7 @@ def attendance():
     cursor.execute("""
         SELECT roll_number, name, year, semester, department, section
         FROM students
-        WHERE roll_number=?
+        WHERE roll_number=%s
     """, (roll,))
     student = cursor.fetchone()
 
@@ -308,11 +320,11 @@ def attendance():
         FROM subject_allocation sa
         LEFT JOIN attendance a
             ON a.subject_name = sa.subject_name
-            AND a.student_roll = ?
+            AND a.student_roll = %s
             AND a.year = sa.year
             AND a.semester = sa.semester
             AND a.branch = sa.branch
-        WHERE sa.year = ? AND sa.semester = ? AND sa.branch = ?
+        WHERE sa.year = %s AND sa.semester = %s AND sa.branch = %s
         GROUP BY sa.subject_name
         ORDER BY sa.subject_name
     """, (roll, year, semester, branch))
@@ -376,7 +388,7 @@ def fee_details():
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM students WHERE roll_number=?", (roll,))
+    cursor.execute("SELECT * FROM students WHERE roll_number=%s", (roll,))
     student_row = cursor.fetchone()
     conn.close()
 
@@ -459,7 +471,7 @@ def change_password():
 
     cursor.execute("""
         SELECT * FROM students
-        WHERE roll_number=? AND password=?
+        WHERE roll_number=%s AND password=%s
     """, (student["roll_number"], old_password))
 
     if cursor.fetchone() is None:
@@ -467,8 +479,8 @@ def change_password():
 
     cursor.execute("""
         UPDATE students
-        SET password=?
-        WHERE roll_number=?
+        SET password=%s
+        WHERE roll_number=%s
     """, (new_password, student["roll_number"]))
 
     conn.commit()
@@ -486,27 +498,38 @@ def admin_login():
 
 # ================= ADMIN LOGIN =================
 
+def _fetch_admin(login_identifier, password):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM admins
+            WHERE (username=%s OR LOWER(email)=LOWER(%s)) AND password=%s
+            """,
+            (login_identifier, login_identifier, password),
+        )
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+
 @app.route("/admin_login", methods=["POST"])
 def admin_login_post():
 
     login_identifier = request.form["username"].strip()
     password = request.form["password"]
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    admin = None
+    try:
+        admin = _fetch_admin(login_identifier, password)
+    except psycopg.errors.UndefinedTable:
+        init_db(force=True)
+        try:
+            admin = _fetch_admin(login_identifier, password)
+        except (psycopg.Error, DatabaseConnectionError):
+            admin = None
 
-    # The same input accepts either the admin username or email address.
-    # Password/session handling stays unchanged so the existing dashboard works.
-    cursor.execute("""
-        SELECT * FROM admins
-        WHERE (username=? OR LOWER(email)=LOWER(?)) AND password=?
-    """, (login_identifier, login_identifier, password))
-
-    admin = cursor.fetchone()
-    conn.close()
-
-    # Backward-compatible fallback for installations that still rely on the
-    # original hardcoded admin credentials.
     if admin or (login_identifier == "admin" and password == "admin123"):
 
         session["admin"] = True
@@ -536,7 +559,7 @@ def staff_login_post():
 
     cursor.execute("""
         SELECT * FROM staff
-        WHERE staff_id=? AND password=?
+        WHERE staff_id=%s AND password=%s
     """, (staff_id, password))
 
     staff = cursor.fetchone()
@@ -626,7 +649,7 @@ def save_student():
 
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 
         """, (
 
@@ -701,7 +724,7 @@ def save_institution():
 
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 
     """, (
 
@@ -753,7 +776,7 @@ def save_staff():
                 staff_id,
                 name,
                 password
-            ) VALUES (?, ?, ?)
+            ) VALUES (%s, %s, %s)
         """, (
             request.form["staff_id"],
             request.form.get("name", ""),
@@ -804,7 +827,7 @@ def edit_staff(staff_id):
 
     cursor.execute("""
         SELECT * FROM staff
-        WHERE staff_id=?
+        WHERE staff_id=%s
     """, (staff_id,))
 
     staff = cursor.fetchone()
@@ -834,9 +857,9 @@ def update_staff():
         cursor.execute("""
             UPDATE staff
             SET
-                name=?,
-                password=?
-            WHERE staff_id=?
+                name=%s,
+                password=%s
+            WHERE staff_id=%s
         """, (
             request.form.get("name", ""),
             request.form["password"],
@@ -866,7 +889,7 @@ def delete_staff(staff_id):
 
         cursor.execute("""
             DELETE FROM staff
-            WHERE staff_id=?
+            WHERE staff_id=%s
         """, (staff_id,))
 
         conn.commit()
@@ -916,7 +939,7 @@ def edit_student(roll_number):
 
     cursor.execute("""
         SELECT * FROM students
-        WHERE roll_number=?
+        WHERE roll_number=%s
     """, (roll_number,))
 
     student = cursor.fetchone()
@@ -948,21 +971,21 @@ def update_student():
         cursor.execute("""
             UPDATE students
             SET
-                name=?,
-                password=?,
-                department=?,
-                course_name=?,
-                age=?,
-                section=?,
-                father_name=?,
-                father_phone=?,
-                mother_name=?,
-                mother_phone=?,
-                phone=?,
-                year=?,
-                semester=?,
-                address=?
-            WHERE roll_number=?
+                name=%s,
+                password=%s,
+                department=%s,
+                course_name=%s,
+                age=%s,
+                section=%s,
+                father_name=%s,
+                father_phone=%s,
+                mother_name=%s,
+                mother_phone=%s,
+                phone=%s,
+                year=%s,
+                semester=%s,
+                address=%s
+            WHERE roll_number=%s
         """, (
 
             request.form["name"],
@@ -1008,7 +1031,7 @@ def delete_student(roll_number):
 
         cursor.execute("""
             DELETE FROM students
-            WHERE roll_number=?
+            WHERE roll_number=%s
         """, (roll_number,))
 
         conn.commit()
@@ -1103,7 +1126,7 @@ def save_allocation():
                 semester,
                 branch
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         """, [
             (name, year, semester, branch)
             for name in subject_names
@@ -1161,7 +1184,7 @@ def staff_attendance():
         selected["attendance_date"] = request.form.get("attendance_date", selected["attendance_date"])
 
         if selected["year"] and selected["semester"] and selected["branch"]:
-            cursor.execute("SELECT DISTINCT subject_name FROM subject_allocation WHERE year=? AND semester=? AND branch=? ORDER BY subject_name", (selected["year"], selected["semester"], selected["branch"]))
+            cursor.execute("SELECT DISTINCT subject_name FROM subject_allocation WHERE year=%s AND semester=%s AND branch=%s ORDER BY subject_name", (selected["year"], selected["semester"], selected["branch"]))
             subject_options = [row[0] for row in cursor.fetchall() if row[0]]
         else:
             subject_options = []
@@ -1171,7 +1194,7 @@ def staff_attendance():
                 cursor.execute("""
                     SELECT roll_number, name
                     FROM students
-                    WHERE year=? AND semester=? AND department=? AND section=?
+                    WHERE year=%s AND semester=%s AND department=%s AND section=%s
                     ORDER BY roll_number
                 """, (selected["year"], selected["semester"], selected["branch"], selected["section"]))
                 students = cursor.fetchall()
@@ -1183,7 +1206,7 @@ def staff_attendance():
             cursor.execute("""
                 SELECT COUNT(DISTINCT date || '_' || subject_name) as attendance_count
                 FROM attendance
-                WHERE year = ? AND semester = ? AND branch = ? AND section = ? AND date = ?
+                WHERE year = %s AND semester = %s AND branch = %s AND section = %s AND date = %s
             """, (selected["year"], selected["semester"], selected["branch"], selected["section"], selected["attendance_date"]))
             
             attendance_count_row = cursor.fetchone()
@@ -1226,7 +1249,7 @@ def staff_attendance():
                             date,
                             status,
                             staff_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, attendance_data)
 
                     conn.commit()
@@ -1237,7 +1260,7 @@ def staff_attendance():
             cursor.execute("""
                 SELECT COUNT(*) as prev_count
                 FROM attendance
-                WHERE year = ? AND semester = ? AND branch = ? AND date < ?
+                WHERE year = %s AND semester = %s AND branch = %s AND date < %s
             """, (selected["year"], selected["semester"], selected["branch"], selected["attendance_date"]))
             
             prev_count_row = cursor.fetchone()
@@ -1250,7 +1273,7 @@ def staff_attendance():
                 cursor.execute("""
                     SELECT date, student_roll, subject_name, status
                     FROM attendance
-                    WHERE year = ? AND semester = ? AND branch = ? AND date < ?
+                    WHERE year = %s AND semester = %s AND branch = %s AND date < %s
                     ORDER BY date DESC
                 """, (selected["year"], selected["semester"], selected["branch"], selected["attendance_date"]))
                 
@@ -1294,7 +1317,7 @@ def staff_attendance():
                             date,
                             status,
                             staff_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, attendance_data)
                     
                     conn.commit()
@@ -1308,7 +1331,7 @@ def staff_attendance():
         cursor.execute("""
             SELECT COUNT(DISTINCT date || '_' || subject_name) as attendance_count
             FROM attendance
-            WHERE year = ? AND semester = ? AND branch = ? AND section = ? AND date = ?
+            WHERE year = %s AND semester = %s AND branch = %s AND section = %s AND date = %s
         """, (selected["year"], selected["semester"], selected["branch"], selected["section"], selected["attendance_date"]))
         
         attendance_count_row = cursor.fetchone()
@@ -1348,7 +1371,7 @@ def subject_options_api():
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT subject_name FROM subject_allocation WHERE year=? AND semester=? AND branch=? ORDER BY subject_name", (year, semester, branch))
+    cursor.execute("SELECT DISTINCT subject_name FROM subject_allocation WHERE year=%s AND semester=%s AND branch=%s ORDER BY subject_name", (year, semester, branch))
     subjects = [row[0] for row in cursor.fetchall() if row[0]]
     conn.close()
 
@@ -1371,7 +1394,7 @@ def section_options_api():
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT section FROM students WHERE department=? ORDER BY section", (branch,))
+    cursor.execute("SELECT DISTINCT section FROM students WHERE department=%s ORDER BY section", (branch,))
     sections = [row[0] for row in cursor.fetchall() if row[0]]
     conn.close()
 
@@ -1392,7 +1415,7 @@ def delete_allocation(allocation_id):
 
         cursor.execute("""
             DELETE FROM subject_allocation
-            WHERE id = ?
+            WHERE id = %s
         """, (allocation_id,))
 
         conn.commit()
@@ -1451,7 +1474,7 @@ def analyze_attendance():
             cursor.execute("""
                 SELECT roll_number, name
                 FROM students
-                WHERE year=? AND semester=? AND department=? AND section=?
+                WHERE year=%s AND semester=%s AND department=%s AND section=%s
                 ORDER BY roll_number
             """, (selected["year"], selected["semester"], selected["branch"], selected["section"]))
 
@@ -1464,7 +1487,7 @@ def analyze_attendance():
                 cursor.execute("""
                     SELECT COUNT(*) as total_classes
                     FROM attendance
-                    WHERE student_roll=? AND year=? AND semester=? AND branch=? AND section=?
+                    WHERE student_roll=%s AND year=%s AND semester=%s AND branch=%s AND section=%s
                 """, (roll, selected["year"], selected["semester"], selected["branch"], selected["section"]))
                 
                 total_classes = cursor.fetchone()["total_classes"]
@@ -1473,7 +1496,7 @@ def analyze_attendance():
                 cursor.execute("""
                     SELECT COUNT(*) as present_count
                     FROM attendance
-                    WHERE student_roll=? AND status='Present' AND year=? AND semester=? AND branch=? AND section=?
+                    WHERE student_roll=%s AND status='Present' AND year=%s AND semester=%s AND branch=%s AND section=%s
                 """, (roll, selected["year"], selected["semester"], selected["branch"], selected["section"]))
                 
                 present_count = cursor.fetchone()["present_count"]
@@ -1485,7 +1508,7 @@ def analyze_attendance():
                 cursor.execute("""
                     SELECT DISTINCT date, subject_name
                     FROM attendance
-                    WHERE student_roll=? AND status='Absent' AND year=? AND semester=? AND branch=? AND section=?
+                    WHERE student_roll=%s AND status='Absent' AND year=%s AND semester=%s AND branch=%s AND section=%s
                     ORDER BY date DESC
                 """, (roll, selected["year"], selected["semester"], selected["branch"], selected["section"]))
 
@@ -1496,7 +1519,7 @@ def analyze_attendance():
                 cursor.execute("""
                     SELECT DISTINCT subject_name
                     FROM attendance
-                    WHERE student_roll=? AND year=? AND semester=? AND branch=? AND section=?
+                    WHERE student_roll=%s AND year=%s AND semester=%s AND branch=%s AND section=%s
                     ORDER BY subject_name
                 """, (roll, selected["year"], selected["semester"], selected["branch"], selected["section"]))
 
@@ -1531,9 +1554,15 @@ def analyze_attendance():
 
 # ================= RUN APP =================
 
+try:
+    init_db()
+except (DatabaseConfigError, DatabaseConnectionError) as error:
+    app.logger.warning("Database initialization at import skipped: %s", error)
+
+
 if __name__ == "__main__":
     try:
-        create_database()
+        init_db()
     except (DatabaseConfigError, DatabaseConnectionError) as error:
         print(error)
         print("Flask will start, but database-backed routes need PostgreSQL configured.")
@@ -1541,5 +1570,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port,
-        debug=os.environ.get("FLASK_DEBUG") == "1"
+        debug=os.environ.get("FLASK_DEBUG") == "1",
     )
