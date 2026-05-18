@@ -1,9 +1,29 @@
-<form action="/admin_login" method="POST">
-    <h2>Admin Login</h2>
+{% extends "layouts/auth.html" %}
 
-    <!-- Single field supports either the existing admin username or admin email. -->
-    <input type="text" name="username" placeholder="Username or Email" required>
-    <input type="password" name="password" placeholder="Password" required>
+{% block title %}Admin Login{% endblock %}
+{% block auth_icon %}<i class="bi bi-shield-lock-fill auth-icon"></i>{% endblock %}
+{% block auth_heading %}Admin Login{% endblock %}
+{% block auth_subheading %}Username or email and password{% endblock %}
 
-    <button type="submit">Login</button>
+{% block auth_content %}
+<form action="{{ url_for('admin_login_post') }}" method="POST" class="vstack gap-3">
+    <div>
+        <label for="username" class="form-label">Username or Email</label>
+        <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required autocomplete="username">
+    </div>
+    <div>
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+    </button>
 </form>
+{% endblock %}
+
+{% block auth_footer %}
+<p class="text-center mt-4 mb-0">
+    <a href="{{ url_for('home') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to Student Login</a>
+</p>
+{% endblock %}
+

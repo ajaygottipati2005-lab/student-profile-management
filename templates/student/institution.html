@@ -1,99 +1,30 @@
 {% extends "student/base.html" %}
-
+{% block title %}Institution{% endblock %}
+{% block page_heading %}Institution{% endblock %}
 {% block content %}
-
-<div class="institution-card">
-
+<div class="app-card">
     {% if institution %}
-
-        <h1>{{ institution.college_name }}</h1>
-
-        <hr>
-
-        <h2>About College</h2>
-        <p>{{ institution.about_college }}</p>
-
-        <h2>Vision</h2>
-        <p>{{ institution.vision }}</p>
-
-        <h2>Mission</h2>
-        <p>{{ institution.mission }}</p>
-
-        <h2>Principal Message</h2>
-        <p>{{ institution.principal_message }}</p>
-
-        <h2>Address</h2>
-        <p>{{ institution.address }}</p>
-
-        <h2>Email</h2>
-        <p>{{ institution.email }}</p>
-
-        <h2>Phone</h2>
-        <p>{{ institution.phone }}</p>
-
-        <h2>Website</h2>
-        <p>
-            <a href="{{ institution.website }}" target="_blank">
-                {{ institution.website }}
-            </a>
-        </p>
-
-        <h2>Accreditation</h2>
-        <p>{{ institution.accreditation }}</p>
-
-        <h2>Placements</h2>
-        <p>{{ institution.placements }}</p>
-
+    <h1 class="h4 mb-3">{{ institution.college_name }}</h1>
+    <hr>
+    <h2 class="h6 text-muted">About</h2>
+    <p>{{ institution.about_college }}</p>
+    <h2 class="h6 text-muted">Vision</h2>
+    <p>{{ institution.vision }}</p>
+    <h2 class="h6 text-muted">Mission</h2>
+    <p>{{ institution.mission }}</p>
+    <h2 class="h6 text-muted">Principal message</h2>
+    <p>{{ institution.principal_message }}</p>
+    <h2 class="h6 text-muted">Contact</h2>
+    <p class="mb-1">{{ institution.address }}</p>
+    <p class="mb-1">{{ institution.email }}</p>
+    <p class="mb-1">{{ institution.phone }}</p>
+    <p class="mb-1"><a href="{{ institution.website }}" target="_blank" rel="noopener">{{ institution.website }}</a></p>
+    <h2 class="h6 text-muted mt-3">Accreditation</h2>
+    <p>{{ institution.accreditation }}</p>
+    <h2 class="h6 text-muted">Placements</h2>
+    <p class="mb-0">{{ institution.placements }}</p>
     {% else %}
-
-        <h2>No Institution Details Added Yet</h2>
-
+    <p class="text-muted mb-0">No institution details added yet.</p>
     {% endif %}
-
 </div>
-
-
-<style>
-
-.institution-card{
-
-    background:white;
-    padding:30px;
-    border-radius:10px;
-    box-shadow:0px 0px 10px #ccc;
-    max-width:900px;
-    margin:auto;
-
-}
-
-.institution-card h1{
-
-    color:#2c3e50;
-    margin-bottom:20px;
-
-}
-
-.institution-card h2{
-
-    margin-top:25px;
-    color:#34495e;
-
-}
-
-.institution-card p{
-
-    line-height:1.8;
-    color:#555;
-
-}
-
-.institution-card a{
-
-    color:blue;
-    text-decoration:none;
-
-}
-
-</style>
-
 {% endblock %}

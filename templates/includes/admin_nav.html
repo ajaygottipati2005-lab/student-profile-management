@@ -1,0 +1,27 @@
+<nav class="app-sidebar-nav" aria-label="Admin navigation">
+    <a href="{{ url_for('admin_dashboard') }}" class="app-nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+        <i class="bi bi-grid-fill"></i><span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('add_student') }}" class="app-nav-link {% if request.endpoint in ('add_student', 'save_student') %}active{% endif %}">
+        <i class="bi bi-person-plus-fill"></i><span>Add Student</span>
+    </a>
+    <a href="{{ url_for('modify_student') }}" class="app-nav-link {% if request.endpoint in ('modify_student', 'edit_student', 'update_student', 'delete_student', 'promote_student', 'promote_all_students') %}active{% endif %}">
+        <i class="bi bi-pencil-square"></i><span>Modify Students</span>
+    </a>
+    <a href="{{ url_for('add_staff') }}" class="app-nav-link {% if request.endpoint in ('add_staff', 'save_staff') %}active{% endif %}">
+        <i class="bi bi-person-badge-fill"></i><span>Add Staff</span>
+    </a>
+    <a href="{{ url_for('modify_staff') }}" class="app-nav-link {% if request.endpoint in ('modify_staff', 'edit_staff', 'update_staff', 'delete_staff') %}active{% endif %}">
+        <i class="bi bi-people-fill"></i><span>Manage Staff</span>
+    </a>
+    <a href="{{ url_for('add_institution') }}" class="app-nav-link {% if request.endpoint in ('add_institution', 'save_institution') %}active{% endif %}">
+        <i class="bi bi-building"></i><span>Institution</span>
+    </a>
+    <a href="{{ url_for('allocate_subjects') }}" class="app-nav-link {% if request.endpoint in ('allocate_subjects', 'save_allocation', 'delete_allocation') %}active{% endif %}">
+        <i class="bi bi-journal-bookmark-fill"></i><span>Allocate Subjects</span>
+    </a>
+    <a href="{{ url_for('admin_logout') }}" class="app-nav-link app-nav-logout">
+        <i class="bi bi-box-arrow-right"></i><span>Logout</span>
+    </a>
+</nav>
+

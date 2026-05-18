@@ -1,0 +1,109 @@
+{% extends "student/base.html" %}
+
+{% block title %}Student Profile{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student-profile.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-card profile-page-card">
+    <section class="profile-hero">
+        <div class="profile-avatar-wrap">
+            <div
+                id="profile-avatar"
+                class="profile-avatar"
+                role="button"
+                tabindex="0"
+                aria-label="Change profile picture"
+            >
+                {% if student.photo_filename %}
+                    <img
+                        src="{{ url_for('static', filename='uploads/students/' ~ student.photo_filename) }}"
+                        alt="Profile photo of {{ student.name }}"
+                    >
+                {% else %}
+                    <span class="avatar-placeholder">Tap to add<br>photo</span>
+                {% endif %}
+                <span class="avatar-overlay">Change photo</span>
+            </div>
+        </div>
+
+        <div class="profile-summary">
+            <h1 class="student-name">{{ student.name or 'Student' }}</h1>
+            <p class="student-roll">{{ student.roll_number }}</p>
+            <span class="semester-badge">
+                Year {{ student.year or 1 }} · Semester {{ student.semester or 1 }}
+            </span>
+        </div>
+    </section>
+
+    <section class="profile-details">
+        <h2>Personal &amp; academic details</h2>
+        <div class="profile-details-grid">
+            <div class="profile-detail-row">
+                <span class="label">Department</span>
+                <span class="value">{{ student.department or '—' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Course</span>
+                <span class="value">{{ student.course_name or '—' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Section</span>
+                <span class="value">{{ student.section or '—' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Age</span>
+                <span class="value">{{ student.age or '—' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Phone</span>
+                <span class="value">{{ student.phone or '—' }}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Father</span>
+                <span class="value">{{ student.father_name or '—' }}{% if student.father_phone %} · {{ student.father_phone }}{% endif %}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Mother</span>
+                <span class="value">{{ student.mother_name or '—' }}{% if student.mother_phone %} · {{ student.mother_phone }}{% endif %}</span>
+            </div>
+            <div class="profile-detail-row">
+                <span class="label">Address</span>
+                <span class="value">{{ student.address or '—' }}</span>
+            </div>
+        </div>
+    </section>
+</div>
+
+<form
+    id="dp-upload-form"
+    class="sr-only"
+    action="{{ url_for('upload_dp') }}"
+    method="POST"
+    enctype="multipart/form-data"
+>
+    <input type="file" id="dp-input" name="dp" accept="image/png,image/jpeg,image/jpg,image/gif" capture="environment">
+</form>
+
+<div id="dp-menu-backdrop" class="dp-menu-backdrop" aria-hidden="true"></div>
+<nav id="dp-menu" class="dp-menu" aria-label="Profile photo options" aria-hidden="true">
+    <button type="button" id="dp-upload-device">
+        <span class="menu-icon" aria-hidden="true">📷</span>
+        Upload from device
+    </button>
+    <button type="button" id="dp-change-picture">
+        <span class="menu-icon" aria-hidden="true">🖼️</span>
+        Change picture
+    </button>
+    <button type="button" id="dp-menu-cancel" class="menu-cancel">Cancel</button>
+</nav>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/student-profile.js') }}"></script>
+{% endblock %}
+

@@ -1,187 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Staff</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-
-        .back-link:hover {
-            background: #764ba2;
-        }
-
-        .staff-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .staff-table thead {
-            background: #667eea;
-            color: white;
-        }
-
-        .staff-table th,
-        .staff-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .staff-table tbody tr:hover {
-            background: #f5f5f5;
-        }
-
-        .edit-btn,
-        .delete-btn {
-            display: inline-block;
-            padding: 8px 16px;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
-            margin-right: 5px;
-        }
-
-        .edit-btn {
-            background: #28a745;
-        }
-
-        .edit-btn:hover {
-            background: #218838;
-        }
-
-        .delete-btn {
-            background: #dc3545;
-            border: none;
-            cursor: pointer;
-        }
-
-        .delete-btn:hover {
-            background: #c82333;
-        }
-
-        .search-box {
-            margin-bottom: 20px;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        .no-staff {
-            text-align: center;
-            padding: 30px;
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/admin_dashboard" class="back-link">← Back to Dashboard</a>
-        <h1>Manage Staff Members</h1>
-
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search by Staff ID or Name...">
-        </div>
-
-        {% if staff_members %}
-        <table class="staff-table">
+{% extends "layouts/admin.html" %}
+{% block title %}Manage Staff{% endblock %}
+{% block page_heading %}Manage Staff{% endblock %}
+{% block content %}
+<div class="app-card">
+    <label class="form-label" for="searchInput">Search staff</label>
+    <input type="search" class="form-control mb-3" id="searchInput" placeholder="Staff ID or name…">
+    {% if staff_members %}
+    <div class="table-responsive">
+        <table class="table table-app table-cards-mobile align-middle">
             <thead>
-                <tr>
-                    <th>Staff ID</th>
-                    <th>Name</th>
-                    <th>Action</th>
-                </tr>
+                <tr><th>Staff ID</th><th>Name</th><th>Actions</th></tr>
             </thead>
             <tbody id="staffList">
                 {% for staff in staff_members %}
                 <tr class="staff-row" data-id="{{ staff['staff_id'] }}" data-name="{{ staff['name'] }}">
                     <td>{{ staff['staff_id'] }}</td>
                     <td>{{ staff['name'] }}</td>
-                    <td>
-                        <a href="/edit_staff/{{ staff['staff_id'] }}" class="edit-btn">Edit</a>
-                        <button class="delete-btn" onclick="deleteStaff('{{ staff['staff_id'] }}', '{{ staff['name'] }}')">Delete</button>
+                    <td class="actions-cell">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('edit_staff', staff_id=staff['staff_id']) }}" class="btn btn-sm btn-success">Edit</a>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteStaff('{{ staff['staff_id'] }}', '{{ staff['name'] }}')">Delete</button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-        <div class="no-staff">
-            <p>❌ No staff members found in the database.</p>
-        </div>
-        {% endif %}
     </div>
-
-    <script>
-        const searchInput = document.getElementById('searchInput');
-        const staffList = document.getElementById('staffList');
-
-        if (searchInput && staffList) {
-            searchInput.addEventListener('keyup', function() {
-                const filter = this.value.toLowerCase();
-                const rows = staffList.querySelectorAll('.staff-row');
-
-                rows.forEach(row => {
-                    const id = row.dataset.id.toLowerCase();
-                    const name = row.dataset.name.toLowerCase();
-                    if (id.includes(filter) || name.includes(filter)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        }
-
-        function deleteStaff(staffId, staffName) {
-            if (confirm(`⚠️ Are you sure you want to delete ${staffName || staffId}?\n\nThis action cannot be undone.`)) {
-                window.location.href = `/delete_staff/${staffId}`;
-            }
-        }
-    </script>
-</body>
-</html>
+    {% else %}
+    <p class="text-muted mb-0">No staff members found.</p>
+    {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){var s=document.getElementById('searchInput'),l=document.getElementById('staffList');if(!s||!l)return;s.addEventListener('input',function(){var f=this.value.toLowerCase();l.querySelectorAll('.staff-row').forEach(function(r){var id=(r.dataset.id||'').toLowerCase(),n=(r.dataset.name||'').toLowerCase();r.style.display=(id.includes(f)||n.includes(f))?'':'none';});});})();
+function deleteStaff(id,name){if(confirm('Delete '+(name||id)+'?'))location.href='/delete_staff/'+id;}
+</script>
+{% endblock %}

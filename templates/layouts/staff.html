@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'includes/head.html' %}
+    <title>{% block title %}Staff{% endblock %} | Student Management</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="app-shell staff-shell">
+    <div id="app-overlay" class="app-overlay" aria-hidden="true"></div>
+
+    <aside id="app-sidebar" class="app-sidebar staff-sidebar" aria-label="Staff sidebar">
+        <div class="app-sidebar-brand">
+            <i class="bi bi-person-workspace"></i>
+            <span>Staff Panel</span>
+        </div>
+        {% include 'includes/staff_nav.html' %}
+    </aside>
+
+    <div class="app-main">
+        <header class="app-topbar">
+            <button type="button" class="btn btn-link app-menu-btn" id="app-menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="app-sidebar">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <h1 class="app-topbar-title mb-0">{% block page_heading %}Staff{% endblock %}</h1>
+        </header>
+        <main class="app-content container-fluid">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% include 'includes/scripts.html' %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

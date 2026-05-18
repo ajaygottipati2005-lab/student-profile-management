@@ -1,110 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Staff</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-
-        .back-link:hover {
-            background: #5a67d8;
-        }
-
-        .staff-info {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .staff-info p {
-            margin-bottom: 10px;
-            color: #555;
-        }
-
-        form {
-            display: grid;
-            gap: 15px;
-        }
-
-        input {
-            width: 100%;
-            padding: 14px 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-
-        button {
-            padding: 14px 16px;
-            background: #667eea;
-            border: none;
-            color: white;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #5a67d8;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/modify_staff" class="back-link">← Back to Staff List</a>
-        <h1>Edit Staff Member</h1>
-
-        <div class="staff-info">
-            <p><strong>Staff ID:</strong> {{ staff['staff_id'] }}</p>
-            <p><strong>Current Name:</strong> {{ staff['name'] }}</p>
+{% extends "layouts/admin.html" %}
+{% block title %}Edit Staff{% endblock %}
+{% block page_heading %}Edit Staff{% endblock %}
+{% block content %}
+<div class="app-card mb-3">
+    <p class="mb-1"><strong>Staff ID:</strong> {{ staff['staff_id'] }}</p>
+    <p class="mb-0 text-muted">Current name: {{ staff['name'] }}</p>
+</div>
+<div class="app-card">
+    <form action="{{ url_for('update_staff') }}" method="POST" class="row g-3" onsubmit="return confirm('Update this staff profile?');">
+        <input type="hidden" name="staff_id" value="{{ staff['staff_id'] }}">
+        <div class="col-12">
+            <label class="form-label" for="name">Name</label>
+            <input class="form-control" type="text" id="name" name="name" value="{{ staff['name'] }}" required>
         </div>
-
-        <form action="/update_staff" method="POST" onsubmit="return confirm('Are you sure you want to update this staff profile?');">
-            <input type="hidden" name="staff_id" value="{{ staff['staff_id'] }}">
-            <input type="text" name="name" placeholder="Staff Name" value="{{ staff['name'] }}" required>
-            <input type="password" name="password" placeholder="Password" value="{{ staff['password'] }}" required>
-            <button type="submit">Update Staff</button>
-        </form>
-    </div>
-</body>
-</html>
+        <div class="col-12">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-control" type="password" id="password" name="password" value="{{ staff['password'] }}" required>
+        </div>
+        <div class="col-12 d-grid gap-2 d-md-flex">
+            <button type="submit" class="btn btn-primary flex-fill">Update Staff</button>
+            <a href="{{ url_for('modify_staff') }}" class="btn btn-outline-secondary flex-fill">Back to List</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

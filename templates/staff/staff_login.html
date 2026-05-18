@@ -1,81 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Login</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
+{% extends "layouts/auth.html" %}
 
-        .box {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
-            width: 320px;
-            text-align: center;
-        }
+{% block title %}Staff Login{% endblock %}
+{% block auth_icon %}<i class="bi bi-person-workspace auth-icon"></i>{% endblock %}
+{% block auth_heading %}Staff Login{% endblock %}
+{% block auth_subheading %}Sign in with your staff credentials{% endblock %}
 
-        h2 {
-            margin-bottom: 20px;
-        }
-
-        input {
-            width: 90%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        button {
-            width: 95%;
-            padding: 10px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            background-color: #007BFF;
-            color: white;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .back-link {
-            margin-top: 20px;
-        }
-
-        .back-link a {
-            color: #007BFF;
-            text-decoration: none;
-        }
-
-        .back-link a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h2>Staff Login</h2>
-        <form action="/staff_login" method="POST">
-            <input type="text" name="staff_id" placeholder="Staff ID" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <div class="back-link">
-            <a href="/">Back to Student Login</a>
-        </div>
+{% block auth_content %}
+<form action="{{ url_for('staff_login_post') }}" method="POST" class="vstack gap-3">
+    <div>
+        <label for="staff_id" class="form-label">Staff ID</label>
+        <input type="text" class="form-control" id="staff_id" name="staff_id" placeholder="Staff ID" required autocomplete="username">
     </div>
-</body>
-</html>
+    <div>
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+    </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+<p class="text-center mt-4 mb-0">
+    <a href="{{ url_for('home') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to Student Login</a>
+</p>
+{% endblock %}
+

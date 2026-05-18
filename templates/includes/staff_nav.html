@@ -1,0 +1,15 @@
+<nav class="app-sidebar-nav" aria-label="Staff navigation">
+    <a href="{{ url_for('staff_dashboard') }}" class="app-nav-link {% if request.endpoint == 'staff_dashboard' %}active{% endif %}">
+        <i class="bi bi-grid-fill"></i><span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('staff_attendance') }}" class="app-nav-link {% if request.endpoint == 'staff_attendance' %}active{% endif %}">
+        <i class="bi bi-calendar-check-fill"></i><span>Take Attendance</span>
+    </a>
+    <a href="{{ url_for('analyze_attendance') }}" class="app-nav-link {% if request.endpoint == 'analyze_attendance' %}active{% endif %}">
+        <i class="bi bi-bar-chart-fill"></i><span>Analyze Attendance</span>
+    </a>
+    <a href="{{ url_for('staff_logout') }}" class="app-nav-link app-nav-logout">
+        <i class="bi bi-box-arrow-right"></i><span>Logout</span>
+    </a>
+</nav>
+

@@ -1,0 +1,326 @@
+:root {
+    --nav-height: 56px;
+    --sidebar-width: 260px;
+    --sidebar-bg: #1e293b;
+    --sidebar-hover: #334155;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --page-bg: #f1f5f9;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --shadow: 0 4px 24px rgba(15, 23, 42, 0.12);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body.student-layout {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--page-bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+body.sidebar-open {
+    overflow: hidden;
+}
+
+/* Top navbar */
+.top-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--nav-height);
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    z-index: 1000;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+}
+
+.navbar-brand span {
+    color: var(--accent);
+}
+
+.hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.hamburger-btn:hover,
+.hamburger-btn:focus-visible {
+    background: #f1f5f9;
+    outline: none;
+}
+
+.hamburger-btn[aria-expanded="true"] {
+    background: #eef2ff;
+    color: var(--accent);
+}
+
+.hamburger-icon {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 20px;
+}
+
+.hamburger-icon span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: currentColor;
+    border-radius: 2px;
+    transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.hamburger-btn[aria-expanded="true"] .hamburger-icon span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-btn[aria-expanded="true"] .hamburger-icon span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-btn[aria-expanded="true"] .hamburger-icon span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Overlay */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 1001;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.sidebar-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Sidebar */
+.student-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    max-width: min(var(--sidebar-width), 85vw);
+    height: 100vh;
+    background: var(--sidebar-bg);
+    z-index: 1002;
+    padding: calc(var(--nav-height) + 12px) 0 24px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow);
+    overflow-y: auto;
+}
+
+.student-sidebar.is-open {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 8px;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.sidebar-header p {
+    margin: 6px 0 0;
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #e2e8f0;
+    text-decoration: none;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-nav a:hover,
+.sidebar-nav a:focus-visible {
+    background: var(--sidebar-hover);
+    color: #fff;
+    outline: none;
+}
+
+.sidebar-nav a.is-active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.sidebar-nav a.logout-link {
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 16px;
+    border-radius: 0 0 10px 10px;
+    color: #fca5a5;
+}
+
+.sidebar-nav a.logout-link:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fecaca;
+}
+
+/* Main content */
+.student-content {
+    margin-top: var(--nav-height);
+    padding: 24px 20px 40px;
+    min-height: calc(100vh - var(--nav-height));
+    max-width: 1100px;
+}
+
+@media (min-width: 768px) {
+    .student-content {
+        padding: 32px 40px 48px;
+    }
+}
+
+/* Shared page components */
+.page-card {
+    background: #fff;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+}
+
+.page-card h1,
+.page-card h2 {
+    margin-top: 0;
+    color: var(--text);
+}
+
+.empty-state {
+    padding: 24px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    color: #92400e;
+}
+
+.settings-section {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.settings-section h3 {
+    margin: 24px 0 12px;
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.settings-section input {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.settings-section button,
+.settings-section .btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.settings-section button:hover,
+.settings-section .btn:hover {
+    background: var(--accent-hover);
+}
+
+.settings-section .btn-secondary {
+    background: #64748b;
+}
+
+.settings-section .btn-secondary:hover {
+    background: #475569;
+}
+
+.settings-section a.btn {
+    display: inline-block;
+    text-decoration: none;
+    color: #fff;
+}
+
+body.dark-mode {
+    --page-bg: #0f172a;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+}
+
+body.dark-mode .top-navbar {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .navbar-brand {
+    color: #f1f5f9;
+}
+
+body.dark-mode .page-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .hamburger-btn:hover {
+    background: #334155;
+}

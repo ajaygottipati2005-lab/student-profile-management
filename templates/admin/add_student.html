@@ -1,37 +1,119 @@
-{% if success_message %}
-    <div class="success-message">
-        <p>{{ success_message }}</p>
-        <a href="/add_student" class="button">Add One More Student</a>
+{% extends "layouts/admin.html" %}
+
+{% block title %}Add Student{% endblock %}
+{% block page_heading %}Add Student{% endblock %}
+
+{% block content %}
+<div class="app-card">
+    {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+    {% endif %}
+
+    {% if show_success %}
+    <div class="success-screen">
+        <div class="success-icon-lg"><i class="bi bi-check-lg"></i></div>
+        <h2 class="h4">Student added successfully</h2>
+        <p class="text-muted mb-4">The new student has been saved to the database.</p>
+        <div class="d-grid gap-2 col-md-8 mx-auto">
+            <a href="{{ url_for('add_student') }}" class="btn btn-primary btn-lg">
+                <i class="bi bi-person-plus me-1"></i> Add One More Student
+            </a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-house me-1"></i> Go Back to Dashboard
+            </a>
+        </div>
     </div>
-{% endif %}
+    {% else %}
+    <form id="add-student-form" action="{{ url_for('save_student') }}" method="POST" autocomplete="off" class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label" for="roll">Roll Number</label>
+            <input class="form-control" id="roll" name="roll" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="name">Full Name</label>
+            <input class="form-control" id="name" name="name" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-control" type="password" id="password" name="password" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="department">Department</label>
+            <input class="form-control" id="department" name="department" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="course">Course</label>
+            <input class="form-control" id="course" name="course" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="age">Age</label>
+            <input class="form-control" type="number" id="age" name="age" min="1" max="100">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="section">Section</label>
+            <input class="form-control" id="section" name="section" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="phone">Phone</label>
+            <input class="form-control" type="tel" id="phone" name="phone">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="year">Year</label>
+            <select class="form-select" id="year" name="year" required>
+                <option value="1">Year 1</option>
+                <option value="2">Year 2</option>
+                <option value="3">Year 3</option>
+                <option value="4">Year 4</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="semester">Semester</label>
+            <select class="form-select" id="semester" name="semester" required>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="father">Father Name</label>
+            <input class="form-control" id="father" name="father">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="father_phone">Father Phone</label>
+            <input class="form-control" type="tel" id="father_phone" name="father_phone">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="mother">Mother Name</label>
+            <input class="form-control" id="mother" name="mother">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="mother_phone">Mother Phone</label>
+            <input class="form-control" type="tel" id="mother_phone" name="mother_phone">
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="address">Address</label>
+            <input class="form-control" id="address" name="address">
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100" id="submit-btn">
+                <i class="bi bi-save me-1"></i> Save Student
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
 
-<form action="/save_student" method="POST">
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById("add-student-form");
+    var btn = document.getElementById("submit-btn");
+    if (!form || !btn) return;
+    form.addEventListener("submit", function () {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+    });
+})();
+</script>
+{% endblock %}
 
-    <input name="roll" placeholder="Roll Number">
-    <input name="name" placeholder="Name">
-    <input name="password" placeholder="Password">
-    <input name="department" placeholder="Department">
-    <input name="course" placeholder="Course">
-    <input name="age" placeholder="Age">
-    <input name="section" placeholder="Section">
-    <input name="phone" type="tel" placeholder="Student Phone Number">
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <select name="year" required>
-            <option value="1">Year 1</option>
-            <option value="2">Year 2</option>
-            <option value="3">Year 3</option>
-            <option value="4">Year 4</option>
-        </select>
-        <select name="semester" required>
-            <option value="1">Semester 1</option>
-            <option value="2">Semester 2</option>
-        </select>
-    </div>
-    <input name="father" placeholder="Father Name">
-    <input name="father_phone" type="tel" placeholder="Father Phone Number">
-    <input name="mother" placeholder="Mother Name">
-    <input name="mother_phone" type="tel" placeholder="Mother Phone Number">
-    <input name="address" placeholder="Address">
-
-    <button type="submit">Save</button>
-</form>

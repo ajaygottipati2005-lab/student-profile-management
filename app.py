@@ -615,13 +615,17 @@ def add_student():
     if not session.get("admin"):
         return redirect("/admin")
 
-    return render_template("admin/add_student.html")
+    show_success = request.args.get("success") == "1"
+    return render_template("admin/add_student.html", show_success=show_success)
 
 
 # ================= SAVE STUDENT =================
 
 @app.route("/save_student", methods=["POST"])
 def save_student():
+
+    if not session.get("admin"):
+        return redirect("/admin")
 
     try:
 
@@ -674,14 +678,15 @@ def save_student():
         conn.commit()
         conn.close()
 
-        return render_template(
-            "admin/add_student.html",
-            success_message="✅ Student Added Successfully"
-        )
+        return redirect(url_for("add_student", success=1))
 
     except Exception as e:
 
-        return f"❌ ERROR: {e}"
+        return render_template(
+            "admin/add_student.html",
+            error_message=str(e),
+            show_success=False,
+        )
 
 
 # ================= ADD INSTITUTION =================
@@ -1061,7 +1066,7 @@ def admin_logout():
 
     session.clear()
 
-    return redirect("/admin")
+    return redirect(url_for("home"))
 
 
 # ================= ALLOCATE SUBJECTS =================

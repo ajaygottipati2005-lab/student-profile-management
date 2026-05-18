@@ -1,6 +1,9 @@
 {% extends "student/base.html" %}
-
+{% block title %}Assignments{% endblock %}
+{% block page_heading %}Assignments{% endblock %}
 {% block content %}
-<h2>Assignments</h2>
-<p>No assignments available.</p>
+<div class="app-card">
+    <h1 class="h4 mb-3">Assignments</h1>
+    <p class="empty-state mb-0">No assignments available.</p>
+</div>
 {% endblock %}
