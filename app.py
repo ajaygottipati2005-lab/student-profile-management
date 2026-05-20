@@ -16,7 +16,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret123")
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "students")
 app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg", "gif"}
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+try:
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+except Exception as e:
+    app.logger.warning("Could not create upload folder: %s", e)
 
 def ensure_database_initialized():
     try:
@@ -1908,12 +1911,6 @@ def analyze_attendance():
 
 
 # ================= RUN APP =================
-
-try:
-    init_db()
-except (DatabaseConfigError, DatabaseConnectionError) as error:
-    app.logger.warning("Database initialization at import skipped: %s", error)
-
 
 if __name__ == "__main__":
     try:
