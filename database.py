@@ -171,6 +171,37 @@ def _add_column_if_not_exists(cursor, table_name, column_name, column_def):
         cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
 
 
+def _add_unique_constraint_if_not_exists(cursor, table_name, column_name):
+    """Safely add a UNIQUE constraint to a column if it doesn't exist."""
+    _identifier(table_name)
+    _identifier(column_name)
+    
+    # Check if constraint already exists
+    cursor.execute(
+        """
+        SELECT constraint_name
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public' 
+        AND table_name = %s 
+        AND constraint_type = 'UNIQUE'
+        """,
+        (table_name,),
+    )
+    existing_constraints = {row["constraint_name"] for row in cursor.fetchall()}
+    
+    # Generate constraint name
+    constraint_name = f"idx_{table_name}_{column_name}_unique"
+    
+    if constraint_name not in existing_constraints:
+        try:
+            cursor.execute(
+                f"ALTER TABLE {table_name} ADD CONSTRAINT {constraint_name} UNIQUE ({column_name})"
+            )
+        except psycopg.errors.UniqueViolation:
+            # Constraint might already exist with different name, check column uniqueness
+            pass
+
+
 def _create_tables(cursor):
     cursor.execute(
         """
@@ -208,7 +239,7 @@ def _create_tables(cursor):
         """
         CREATE TABLE IF NOT EXISTS admins (
             id SERIAL PRIMARY KEY,
-            email TEXT UNIQUE,
+            email TEXT,
             otp TEXT,
             otp_expiry TIMESTAMP
         )
@@ -217,6 +248,7 @@ def _create_tables(cursor):
 
     _add_column_if_not_exists(cursor, "admins", "otp", "TEXT")
     _add_column_if_not_exists(cursor, "admins", "otp_expiry", "TIMESTAMP")
+    _add_unique_constraint_if_not_exists(cursor, "admins", "email")
 
     cursor.execute(
         """
