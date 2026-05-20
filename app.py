@@ -56,11 +56,18 @@ def send_otp_email(email, otp):
     Requires EMAIL_USER and EMAIL_PASS environment variables.
     """
     try:
+        # Get environment variables - works with both .env and Render environment
         email_user = os.environ.get("EMAIL_USER")
         email_pass = os.environ.get("EMAIL_PASS")
         
+        # Log environment variable status for debugging
+        app.logger.info(f"EMAIL_USER set: {bool(email_user)}")
+        app.logger.info(f"EMAIL_PASS set: {bool(email_pass)}")
+        
         if not email_user or not email_pass:
             app.logger.error("EMAIL_USER and EMAIL_PASS environment variables are not set")
+            app.logger.error(f"EMAIL_USER value: {email_user if email_user else 'None'}")
+            app.logger.error(f"EMAIL_PASS value: {'***' if email_pass else 'None'}")
             return False
         
         # Create email message
@@ -72,30 +79,41 @@ def send_otp_email(email, otp):
         # Set socket timeout to prevent hanging
         socket.setdefaulttimeout(10)
         
+        app.logger.info(f"Attempting to send OTP to {email} via Gmail SMTP")
+        
         # Send email using Gmail SMTP with timeout
         with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
             server.set_debuglevel(0)
+            app.logger.info("SMTP connection established, starting TLS")
             server.starttls()
+            app.logger.info("TLS started, attempting login")
             server.login(email_user, email_pass)
+            app.logger.info("Login successful, sending message")
             server.send_message(msg)
         
         app.logger.info(f"OTP sent successfully to {email}")
         return True
         
-    except socket.timeout:
-        app.logger.error("SMTP connection timeout - could not connect to Gmail SMTP")
+    except socket.timeout as e:
+        app.logger.error(f"SMTP connection timeout: {e}")
         return False
     except smtplib.SMTPConnectError as e:
         app.logger.error(f"SMTP connection error: {e}")
+        app.logger.error(f"SMTP error code: {e.smtp_code}")
+        app.logger.error(f"SMTP error message: {e.smtp_error}")
         return False
     except smtplib.SMTPAuthenticationError as e:
         app.logger.error(f"SMTP authentication error: {e}")
+        app.logger.error(f"SMTP error code: {e.smtp_code}")
+        app.logger.error(f"SMTP error message: {e.smtp_error}")
         return False
     except smtplib.SMTPException as e:
         app.logger.error(f"SMTP error: {e}")
         return False
     except Exception as e:
-        app.logger.error(f"Failed to send OTP email: {e}")
+        app.logger.error(f"Failed to send OTP email: {type(e).__name__}: {e}")
+        import traceback
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
         return False
     finally:
         # Reset socket timeout to default
