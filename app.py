@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from datetime import date, datetime, timedelta
 import random
-import smtplib
-import socket
+import logging
 import requests
-from email.mime.text import MIMEText
 
 load_dotenv()
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from database import DatabaseConfigError, DatabaseConnectionError, get_connection, init_db
 
@@ -51,84 +53,103 @@ def allowed_file(filename):
 
 # ================= EMAIL SENDING FUNCTION =================
 
-def send_otp_email(email, otp):
+def send_otp_email(to_email, otp):
     """
-    Send OTP to admin email using SendGrid API (works on Render).
-    Falls back to Gmail SMTP for local development.
-    Requires SENDGRID_API_KEY or EMAIL_USER/EMAIL_PASS environment variables.
+    Send OTP email using Resend API.
+    
+    Args:
+        to_email (str): Recipient email address
+        otp (str): One-time password to send
+    
+    Returns:
+        dict: Structured response with keys:
+            - success (bool): Whether the operation succeeded
+            - message (str): Detailed message about the result
+            - status_code (int or None): HTTP status code or None for client-side errors
+    
+    Raises:
+        ValueError: If RESEND_API_KEY environment variable is not set
+    
+    Environment Variables:
+        RESEND_API_KEY: Resend API key (required)
+        RESEND_FROM_EMAIL: Sender email (optional, defaults to onboarding@resend.dev)
     """
-    # Try SendGrid first (works on Render)
-    sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
-    if sendgrid_api_key:
-        try:
-            app.logger.info(f"Attempting to send OTP to {email} via SendGrid API")
-            
-            url = "https://api.sendgrid.com/v3/mail/send"
-            headers = {
-                "Authorization": f"Bearer {sendgrid_api_key}",
-                "Content-Type": "application/json"
+    # Input validation
+    if not to_email or not isinstance(to_email, str) or to_email.strip() == "":
+        return {
+            "success": False,
+            "message": "to_email is required and must be a non-empty string",
+            "status_code": None
+        }
+    
+    if not otp or not isinstance(otp, str) or otp.strip() == "":
+        return {
+            "success": False,
+            "message": "otp is required and must be a non-empty string",
+            "status_code": None
+        }
+    
+    # Basic email format check
+    if "@" not in to_email:
+        return {
+            "success": False,
+            "message": "Invalid email format: must contain '@'",
+            "status_code": None
+        }
+    
+    # Load API key safely from environment
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    if not resend_api_key:
+        raise ValueError("RESEND_API_KEY environment variable is not set")
+    
+    # Load sender email (with fallback)
+    from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+    
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {resend_api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "from": from_email,
+        "to": [to_email],
+        "subject": "Your OTP Code",
+        "html": f"<h2>Your OTP is: {otp}</h2><p>This OTP will expire in 5 minutes.</p>"
+    }
+    
+    try:
+        response = requests.post(url, json=data, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"OTP sent successfully to {to_email}")
+            return {
+                "success": True,
+                "message": "OTP sent successfully",
+                "status_code": response.status_code
             }
-            
-            data = {
-                "personalizations": [{
-                    "to": [{"email": email}],
-                    "subject": "Admin Login OTP"
-                }],
-                "from": {"email": os.environ.get("SENDGRID_FROM_EMAIL", "noreply@yourdomain.com")},
-                "content": [{
-                    "type": "text/plain",
-                    "value": f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes."
-                }]
+        else:
+            error_message = response.text if response.text else f"HTTP {response.status_code}"
+            logger.error(f"API error while sending OTP to {to_email}: {response.status_code} - {error_message}")
+            return {
+                "success": False,
+                "message": f"API error: {error_message}",
+                "status_code": response.status_code
             }
-            
-            response = requests.post(url, json=data, headers=headers, timeout=10)
-            
-            if response.status_code in [200, 202]:
-                app.logger.info(f"OTP sent successfully to {email} via SendGrid")
-                return True
-            else:
-                app.logger.error(f"SendGrid API error: {response.status_code} - {response.text}")
-                return False
-                
-        except requests.exceptions.Timeout:
-            app.logger.error("SendGrid API timeout")
-            return False
-        except Exception as e:
-            app.logger.error(f"SendGrid API error: {type(e).__name__}: {e}")
-            return False
-    
-    # Fallback to Gmail SMTP (for local development)
-    email_user = os.environ.get("EMAIL_USER")
-    email_pass = os.environ.get("EMAIL_PASS")
-    
-    if email_user and email_pass:
-        try:
-            app.logger.info(f"Attempting to send OTP to {email} via Gmail SMTP (fallback)")
-            
-            msg = MIMEText(f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes.")
-            msg['Subject'] = 'Admin Login OTP'
-            msg['From'] = email_user
-            msg['To'] = email
-            
-            socket.setdefaulttimeout(10)
-            
-            with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
-                server.set_debuglevel(0)
-                server.starttls()
-                server.login(email_user, email_pass)
-                server.send_message(msg)
-            
-            app.logger.info(f"OTP sent successfully to {email} via Gmail SMTP")
-            return True
-            
-        except Exception as e:
-            app.logger.error(f"Gmail SMTP fallback failed: {type(e).__name__}: {e}")
-            return False
-        finally:
-            socket.setdefaulttimeout(None)
-    
-    app.logger.error("No email service configured (SENDGRID_API_KEY or EMAIL_USER/EMAIL_PASS)")
-    return False
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout while sending OTP email to {to_email}")
+        return {
+            "success": False,
+            "message": "Request timeout: API did not respond within 10 seconds",
+            "status_code": None
+        }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error while sending OTP email to {to_email}: {e}")
+        return {
+            "success": False,
+            "message": f"Request error: {str(e)}",
+            "status_code": None
+        }
 
 
 # ================= OTP GENERATION =================
