@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 import random
 import smtplib
 import socket
+import requests
 from email.mime.text import MIMEText
 
 load_dotenv()
@@ -52,72 +53,82 @@ def allowed_file(filename):
 
 def send_otp_email(email, otp):
     """
-    Send OTP to admin email using Gmail SMTP with timeout handling.
-    Requires EMAIL_USER and EMAIL_PASS environment variables.
+    Send OTP to admin email using SendGrid API (works on Render).
+    Falls back to Gmail SMTP for local development.
+    Requires SENDGRID_API_KEY or EMAIL_USER/EMAIL_PASS environment variables.
     """
-    try:
-        # Get environment variables - works with both .env and Render environment
-        email_user = os.environ.get("EMAIL_USER")
-        email_pass = os.environ.get("EMAIL_PASS")
-        
-        # Log environment variable status for debugging
-        app.logger.info(f"EMAIL_USER set: {bool(email_user)}")
-        app.logger.info(f"EMAIL_PASS set: {bool(email_pass)}")
-        
-        if not email_user or not email_pass:
-            app.logger.error("EMAIL_USER and EMAIL_PASS environment variables are not set")
-            app.logger.error(f"EMAIL_USER value: {email_user if email_user else 'None'}")
-            app.logger.error(f"EMAIL_PASS value: {'***' if email_pass else 'None'}")
+    # Try SendGrid first (works on Render)
+    sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
+    if sendgrid_api_key:
+        try:
+            app.logger.info(f"Attempting to send OTP to {email} via SendGrid API")
+            
+            url = "https://api.sendgrid.com/v3/mail/send"
+            headers = {
+                "Authorization": f"Bearer {sendgrid_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "personalizations": [{
+                    "to": [{"email": email}],
+                    "subject": "Admin Login OTP"
+                }],
+                "from": {"email": os.environ.get("SENDGRID_FROM_EMAIL", "noreply@yourdomain.com")},
+                "content": [{
+                    "type": "text/plain",
+                    "value": f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes."
+                }]
+            }
+            
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 202]:
+                app.logger.info(f"OTP sent successfully to {email} via SendGrid")
+                return True
+            else:
+                app.logger.error(f"SendGrid API error: {response.status_code} - {response.text}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            app.logger.error("SendGrid API timeout")
             return False
-        
-        # Create email message
-        msg = MIMEText(f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes.")
-        msg['Subject'] = 'Admin Login OTP'
-        msg['From'] = email_user
-        msg['To'] = email
-        
-        # Set socket timeout to prevent hanging
-        socket.setdefaulttimeout(10)
-        
-        app.logger.info(f"Attempting to send OTP to {email} via Gmail SMTP")
-        
-        # Send email using Gmail SMTP with timeout
-        with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
-            server.set_debuglevel(0)
-            app.logger.info("SMTP connection established, starting TLS")
-            server.starttls()
-            app.logger.info("TLS started, attempting login")
-            server.login(email_user, email_pass)
-            app.logger.info("Login successful, sending message")
-            server.send_message(msg)
-        
-        app.logger.info(f"OTP sent successfully to {email}")
-        return True
-        
-    except socket.timeout as e:
-        app.logger.error(f"SMTP connection timeout: {e}")
-        return False
-    except smtplib.SMTPConnectError as e:
-        app.logger.error(f"SMTP connection error: {e}")
-        app.logger.error(f"SMTP error code: {e.smtp_code}")
-        app.logger.error(f"SMTP error message: {e.smtp_error}")
-        return False
-    except smtplib.SMTPAuthenticationError as e:
-        app.logger.error(f"SMTP authentication error: {e}")
-        app.logger.error(f"SMTP error code: {e.smtp_code}")
-        app.logger.error(f"SMTP error message: {e.smtp_error}")
-        return False
-    except smtplib.SMTPException as e:
-        app.logger.error(f"SMTP error: {e}")
-        return False
-    except Exception as e:
-        app.logger.error(f"Failed to send OTP email: {type(e).__name__}: {e}")
-        import traceback
-        app.logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
-    finally:
-        # Reset socket timeout to default
-        socket.setdefaulttimeout(None)
+        except Exception as e:
+            app.logger.error(f"SendGrid API error: {type(e).__name__}: {e}")
+            return False
+    
+    # Fallback to Gmail SMTP (for local development)
+    email_user = os.environ.get("EMAIL_USER")
+    email_pass = os.environ.get("EMAIL_PASS")
+    
+    if email_user and email_pass:
+        try:
+            app.logger.info(f"Attempting to send OTP to {email} via Gmail SMTP (fallback)")
+            
+            msg = MIMEText(f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes.")
+            msg['Subject'] = 'Admin Login OTP'
+            msg['From'] = email_user
+            msg['To'] = email
+            
+            socket.setdefaulttimeout(10)
+            
+            with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
+                server.set_debuglevel(0)
+                server.starttls()
+                server.login(email_user, email_pass)
+                server.send_message(msg)
+            
+            app.logger.info(f"OTP sent successfully to {email} via Gmail SMTP")
+            return True
+            
+        except Exception as e:
+            app.logger.error(f"Gmail SMTP fallback failed: {type(e).__name__}: {e}")
+            return False
+        finally:
+            socket.setdefaulttimeout(None)
+    
+    app.logger.error("No email service configured (SENDGRID_API_KEY or EMAIL_USER/EMAIL_PASS)")
+    return False
 
 
 # ================= OTP GENERATION =================
