@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import date, datetime, timedelta
 import random
 import smtplib
+import socket
 from email.mime.text import MIMEText
 
 load_dotenv()
@@ -51,7 +52,7 @@ def allowed_file(filename):
 
 def send_otp_email(email, otp):
     """
-    Send OTP to admin email using Gmail SMTP.
+    Send OTP to admin email using Gmail SMTP with timeout handling.
     Requires EMAIL_USER and EMAIL_PASS environment variables.
     """
     try:
@@ -68,17 +69,37 @@ def send_otp_email(email, otp):
         msg['From'] = email_user
         msg['To'] = email
         
-        # Send email using Gmail SMTP
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        # Set socket timeout to prevent hanging
+        socket.setdefaulttimeout(10)
+        
+        # Send email using Gmail SMTP with timeout
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
+            server.set_debuglevel(0)
             server.starttls()
             server.login(email_user, email_pass)
             server.send_message(msg)
         
         app.logger.info(f"OTP sent successfully to {email}")
         return True
+        
+    except socket.timeout:
+        app.logger.error("SMTP connection timeout - could not connect to Gmail SMTP")
+        return False
+    except smtplib.SMTPConnectError as e:
+        app.logger.error(f"SMTP connection error: {e}")
+        return False
+    except smtplib.SMTPAuthenticationError as e:
+        app.logger.error(f"SMTP authentication error: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        app.logger.error(f"SMTP error: {e}")
+        return False
     except Exception as e:
         app.logger.error(f"Failed to send OTP email: {e}")
         return False
+    finally:
+        # Reset socket timeout to default
+        socket.setdefaulttimeout(None)
 
 
 # ================= OTP GENERATION =================
