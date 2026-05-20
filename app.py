@@ -3,7 +3,10 @@ import os
 import psycopg
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-from datetime import date
+from datetime import date, datetime, timedelta
+import random
+import smtplib
+from email.mime.text import MIMEText
 
 load_dotenv()
 
@@ -39,6 +42,47 @@ def initialize_database_before_request():
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
+
+
+# ================= EMAIL SENDING FUNCTION =================
+
+def send_otp_email(email, otp):
+    """
+    Send OTP to admin email using Gmail SMTP.
+    Requires EMAIL_USER and EMAIL_PASS environment variables.
+    """
+    try:
+        email_user = os.environ.get("EMAIL_USER")
+        email_pass = os.environ.get("EMAIL_PASS")
+        
+        if not email_user or not email_pass:
+            app.logger.error("EMAIL_USER and EMAIL_PASS environment variables are not set")
+            return False
+        
+        # Create email message
+        msg = MIMEText(f"Your OTP for admin login is: {otp}\n\nThis OTP will expire in 5 minutes.")
+        msg['Subject'] = 'Admin Login OTP'
+        msg['From'] = email_user
+        msg['To'] = email
+        
+        # Send email using Gmail SMTP
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()
+            server.login(email_user, email_pass)
+            server.send_message(msg)
+        
+        app.logger.info(f"OTP sent successfully to {email}")
+        return True
+    except Exception as e:
+        app.logger.error(f"Failed to send OTP email: {e}")
+        return False
+
+
+# ================= OTP GENERATION =================
+
+def generate_otp():
+    """Generate a 6-digit random OTP."""
+    return str(random.randint(100000, 999999))
 
 
 # ================= LOGIN CHECK =================
@@ -496,47 +540,127 @@ def admin_login():
     return render_template("admin/admin_login.html")
 
 
-# ================= ADMIN LOGIN =================
+# ================= SEND OTP =================
 
-def _fetch_admin(login_identifier, password):
+@app.route("/send_otp", methods=["POST"])
+def send_otp():
+    """
+    Generate and send OTP to admin email.
+    Store OTP in database with 5-minute expiry.
+    """
+    email = request.form.get("email", "").strip().lower()
+    
+    if not email:
+        return "❌ Email is required"
+    
     conn = get_connection()
+    cursor = conn.cursor()
+    
     try:
-        cursor = conn.cursor()
+        # Check if admin email exists
+        cursor.execute(
+            "SELECT * FROM admins WHERE LOWER(email)=%s",
+            (email,)
+        )
+        admin = cursor.fetchone()
+        
+        if not admin:
+            conn.close()
+            return "❌ Admin email not found"
+        
+        # Generate 6-digit OTP
+        otp = generate_otp()
+        
+        # Set expiry time (5 minutes from now)
+        otp_expiry = datetime.now() + timedelta(minutes=5)
+        
+        # Update admin record with OTP and expiry
         cursor.execute(
             """
-            SELECT * FROM admins
-            WHERE (username=%s OR LOWER(email)=LOWER(%s)) AND password=%s
+            UPDATE admins
+            SET otp=%s, otp_expiry=%s
+            WHERE email=%s
             """,
-            (login_identifier, login_identifier, password),
+            (otp, otp_expiry, email)
         )
-        return cursor.fetchone()
-    finally:
+        conn.commit()
         conn.close()
+        
+        # Send OTP via email
+        if send_otp_email(email, otp):
+            return "✅ OTP sent to your email"
+        else:
+            return "❌ Failed to send OTP. Please check email configuration."
+            
+    except Exception as e:
+        conn.close()
+        return f"❌ Error: {str(e)}"
 
 
-@app.route("/admin_login", methods=["POST"])
-def admin_login_post():
+# ================= VERIFY OTP =================
 
-    login_identifier = request.form["username"].strip()
-    password = request.form["password"]
-
-    admin = None
+@app.route("/verify_otp", methods=["POST"])
+def verify_otp():
+    """
+    Verify OTP and log admin in if valid.
+    Check OTP expiry before verification.
+    """
+    email = request.form.get("email", "").strip().lower()
+    otp = request.form.get("otp", "").strip()
+    
+    if not email or not otp:
+        return "❌ Email and OTP are required"
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
     try:
-        admin = _fetch_admin(login_identifier, password)
-    except psycopg.errors.UndefinedTable:
-        init_db(force=True)
-        try:
-            admin = _fetch_admin(login_identifier, password)
-        except (psycopg.Error, DatabaseConnectionError):
-            admin = None
-
-    if admin or (login_identifier == "admin" and password == "admin123"):
-
+        # Get admin record with OTP details
+        cursor.execute(
+            "SELECT * FROM admins WHERE LOWER(email)=%s",
+            (email,)
+        )
+        admin = cursor.fetchone()
+        
+        if not admin:
+            conn.close()
+            return "❌ Admin not found"
+        
+        # Check if OTP exists
+        stored_otp = admin.get("otp")
+        otp_expiry = admin.get("otp_expiry")
+        
+        if not stored_otp or not otp_expiry:
+            conn.close()
+            return "❌ No OTP found. Please request a new OTP."
+        
+        # Check if OTP has expired
+        if datetime.now() > otp_expiry:
+            conn.close()
+            return "❌ OTP has expired. Please request a new OTP."
+        
+        # Verify OTP
+        if stored_otp != otp:
+            conn.close()
+            return "❌ Invalid OTP"
+        
+        # Clear OTP after successful verification
+        cursor.execute(
+            "UPDATE admins SET otp=NULL, otp_expiry=NULL WHERE email=%s",
+            (email,)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Set admin session
         session["admin"] = True
-
+        session["admin_email"] = email
+        
         return redirect("/admin_dashboard")
-
-    return "❌ Invalid Admin Credentials"
+        
+    except Exception as e:
+        conn.close()
+        return f"❌ Error: {str(e)}"
 
 
 # ================= STAFF LOGIN PAGE =================
@@ -1067,6 +1191,232 @@ def admin_logout():
     session.clear()
 
     return redirect(url_for("home"))
+
+
+# ================= CHANGE EMAIL PAGE =================
+
+@app.route("/change_email")
+def change_email():
+    """Display change email page for admin."""
+    if not session.get("admin"):
+        return redirect("/admin")
+    
+    current_email = session.get("admin_email", "")
+    return render_template("admin/change_email.html", current_email=current_email)
+
+
+# ================= SEND OTP TO CURRENT EMAIL =================
+
+@app.route("/send_otp_current_email", methods=["POST"])
+def send_otp_current_email():
+    """
+    Send OTP to current admin email for security verification.
+    This is the first step in the change email flow.
+    """
+    if not session.get("admin"):
+        return redirect("/admin")
+    
+    current_email = session.get("admin_email")
+    
+    if not current_email:
+        return "❌ Admin session not found"
+    
+    # Generate OTP
+    otp = generate_otp()
+    otp_expiry = datetime.now() + timedelta(minutes=5)
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Store OTP in session for verification
+        session["current_email_otp"] = otp
+        session["current_email_otp_expiry"] = otp_expiry.isoformat()
+        
+        # Also store in database as backup
+        cursor.execute(
+            """
+            UPDATE admins
+            SET otp=%s, otp_expiry=%s
+            WHERE email=%s
+            """,
+            (otp, otp_expiry, current_email)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Send OTP via email
+        if send_otp_email(current_email, otp):
+            return "✅ OTP sent to your current email"
+        else:
+            return "❌ Failed to send OTP. Please check email configuration."
+            
+    except Exception as e:
+        conn.close()
+        return f"❌ Error: {str(e)}"
+
+
+# ================= VERIFY CURRENT EMAIL OTP =================
+
+@app.route("/verify_current_email_otp", methods=["POST"])
+def verify_current_email_otp():
+    """
+    Verify OTP sent to current email.
+    If valid, allow admin to enter new email.
+    """
+    if not session.get("admin"):
+        return redirect("/admin")
+    
+    otp = request.form.get("otp", "").strip()
+    
+    if not otp:
+        return "❌ OTP is required"
+    
+    # Check OTP from session
+    stored_otp = session.get("current_email_otp")
+    otp_expiry_str = session.get("current_email_otp_expiry")
+    
+    if not stored_otp or not otp_expiry_str:
+        return "❌ No OTP found. Please request a new OTP."
+    
+    # Check expiry
+    otp_expiry = datetime.fromisoformat(otp_expiry_str)
+    if datetime.now() > otp_expiry:
+        return "❌ OTP has expired. Please request a new OTP."
+    
+    # Verify OTP
+    if stored_otp != otp:
+        return "❌ Invalid OTP"
+    
+    # Clear OTP from session after successful verification
+    session.pop("current_email_otp", None)
+    session.pop("current_email_otp_expiry", None)
+    
+    # Mark current email as verified
+    session["current_email_verified"] = True
+    
+    return "✅ Current email verified. You can now enter your new email."
+
+
+# ================= SEND OTP TO NEW EMAIL =================
+
+@app.route("/send_otp_new_email", methods=["POST"])
+def send_otp_new_email():
+    """
+    Send OTP to new email address.
+    This is the second step in the change email flow.
+    """
+    if not session.get("admin"):
+        return redirect("/admin")
+    
+    # Verify current email was verified first
+    if not session.get("current_email_verified"):
+        return "❌ Please verify your current email first"
+    
+    new_email = request.form.get("new_email", "").strip().lower()
+    
+    if not new_email:
+        return "❌ New email is required"
+    
+    # Check if new email already exists
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "SELECT * FROM admins WHERE LOWER(email)=%s",
+            (new_email,)
+        )
+        existing = cursor.fetchone()
+        
+        if existing:
+            conn.close()
+            return "❌ This email is already registered"
+        
+        # Generate OTP
+        otp = generate_otp()
+        otp_expiry = datetime.now() + timedelta(minutes=5)
+        
+        # Store OTP and new email in session
+        session["new_email"] = new_email
+        session["new_email_otp"] = otp
+        session["new_email_otp_expiry"] = otp_expiry.isoformat()
+        
+        conn.close()
+        
+        # Send OTP via email
+        if send_otp_email(new_email, otp):
+            return "✅ OTP sent to your new email"
+        else:
+            return "❌ Failed to send OTP. Please check email configuration."
+            
+    except Exception as e:
+        conn.close()
+        return f"❌ Error: {str(e)}"
+
+
+# ================= VERIFY NEW EMAIL OTP =================
+
+@app.route("/verify_new_email_otp", methods=["POST"])
+def verify_new_email_otp():
+    """
+    Verify OTP sent to new email and update admin email in database.
+    This is the final step in the change email flow.
+    """
+    if not session.get("admin"):
+        return redirect("/admin")
+    
+    otp = request.form.get("otp", "").strip()
+    
+    if not otp:
+        return "❌ OTP is required"
+    
+    # Check OTP from session
+    stored_otp = session.get("new_email_otp")
+    otp_expiry_str = session.get("new_email_otp_expiry")
+    new_email = session.get("new_email")
+    
+    if not stored_otp or not otp_expiry_str or not new_email:
+        return "❌ Session expired. Please start the process again."
+    
+    # Check expiry
+    otp_expiry = datetime.fromisoformat(otp_expiry_str)
+    if datetime.now() > otp_expiry:
+        return "❌ OTP has expired. Please request a new OTP."
+    
+    # Verify OTP
+    if stored_otp != otp:
+        return "❌ Invalid OTP"
+    
+    # Update email in database
+    current_email = session.get("admin_email")
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            """
+            UPDATE admins
+            SET email=%s, otp=NULL, otp_expiry=NULL
+            WHERE email=%s
+            """,
+            (new_email, current_email)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Update session
+        session["admin_email"] = new_email
+        session.pop("new_email", None)
+        session.pop("new_email_otp", None)
+        session.pop("new_email_otp_expiry", None)
+        session.pop("current_email_verified", None)
+        
+        return "✅ Email updated successfully"
+        
+    except Exception as e:
+        conn.close()
+        return f"❌ Error: {str(e)}"
 
 
 # ================= ALLOCATE SUBJECTS =================

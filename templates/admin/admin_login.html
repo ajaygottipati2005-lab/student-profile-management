@@ -3,22 +3,115 @@
 {% block title %}Admin Login{% endblock %}
 {% block auth_icon %}<i class="bi bi-shield-lock-fill auth-icon"></i>{% endblock %}
 {% block auth_heading %}Admin Login{% endblock %}
-{% block auth_subheading %}Username or email and password{% endblock %}
+{% block auth_subheading %}Email + OTP Verification{% endblock %}
 
 {% block auth_content %}
-<form action="{{ url_for('admin_login_post') }}" method="POST" class="vstack gap-3">
+<!-- Step 1: Enter Email -->
+<form id="emailForm" action="{{ url_for('send_otp') }}" method="POST" class="vstack gap-3">
     <div>
-        <label for="username" class="form-label">Username or Email</label>
-        <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required autocomplete="username">
-    </div>
-    <div>
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required autocomplete="current-password">
+        <label for="email" class="form-label">Email Address</label>
+        <input type="email" class="form-control" id="email" name="email" placeholder="Enter your admin email" required autocomplete="email">
     </div>
     <button type="submit" class="btn btn-primary w-100">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+        <i class="bi bi-envelope-fill me-1"></i> Send OTP
     </button>
 </form>
+
+<!-- Step 2: Verify OTP (Hidden initially) -->
+<form id="otpForm" action="{{ url_for('verify_otp') }}" method="POST" class="vstack gap-3" style="display: none;">
+    <div>
+        <label for="otpEmail" class="form-label">Email Address</label>
+        <input type="email" class="form-control" id="otpEmail" name="email" readonly>
+    </div>
+    <div>
+        <label for="otp" class="form-label">OTP (6-digit code)</label>
+        <input type="text" class="form-control" id="otp" name="otp" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}" required autocomplete="one-time-code">
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="bi bi-check-circle-fill me-1"></i> Verify & Login
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="resendOTP()">
+            <i class="bi bi-arrow-clockwise"></i> Resend
+        </button>
+    </div>
+</form>
+
+<script>
+// Handle email form submission
+document.getElementById('emailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    
+    fetch('{{ url_for('send_otp') }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'email=' + encodeURIComponent(email)
+    })
+    .then(response => response.text())
+    .then(data => {
+        if (data.includes('✅')) {
+            // Show OTP form
+            document.getElementById('emailForm').style.display = 'none';
+            document.getElementById('otpForm').style.display = 'flex';
+            document.getElementById('otpEmail').value = email;
+            document.getElementById('otp').focus();
+            alert(data);
+        } else {
+            alert(data);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+});
+
+// Handle OTP form submission
+document.getElementById('otpForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const email = document.getElementById('otpEmail').value;
+    const otp = document.getElementById('otp').value;
+    
+    fetch('{{ url_for('verify_otp') }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'email=' + encodeURIComponent(email) + '&otp=' + encodeURIComponent(otp)
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else {
+            return response.text();
+        }
+    })
+    .then(data => {
+        if (data) {
+            alert(data);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+});
+
+// Resend OTP function
+function resendOTP() {
+    const email = document.getElementById('otpEmail').value;
+    
+    fetch('{{ url_for('send_otp') }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'email=' + encodeURIComponent(email)
+    })
+    .then(response => response.text())
+    .then(data => {
+        alert(data);
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
 {% endblock %}
 
 {% block auth_footer %}

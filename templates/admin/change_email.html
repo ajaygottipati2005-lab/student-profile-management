@@ -1,0 +1,204 @@
+{% extends "layouts/admin.html" %}
+
+{% block title %}Change Email{% endblock %}
+{% block page_heading %}Change Admin Email{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4">
+                        <i class="bi bi-envelope-at-fill me-2"></i>Change Your Email
+                    </h5>
+                    
+                    <!-- Current Email Display -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Current Email:</label>
+                        <div class="form-control-plaintext">{{ current_email }}</div>
+                    </div>
+
+                    <!-- Step 1: Verify Current Email -->
+                    <div id="step1" class="mb-4">
+                        <h6 class="mb-3 text-primary">
+                            <i class="bi bi-1-circle-fill me-1"></i>Step 1: Verify Current Email
+                        </h6>
+                        <p class="text-muted small">For security, we'll send an OTP to your current email first.</p>
+                        
+                        <button onclick="sendOTPToCurrentEmail()" class="btn btn-primary">
+                            <i class="bi bi-envelope-fill me-1"></i> Send OTP to Current Email
+                        </button>
+                        
+                        <div id="step1-otp" class="mt-3" style="display: none;">
+                            <div class="input-group">
+                                <input type="text" id="currentOtp" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                                <button onclick="verifyCurrentEmailOTP()" class="btn btn-success">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Verify
+                                </button>
+                            </div>
+                            <button onclick="sendOTPToCurrentEmail()" class="btn btn-sm btn-outline-secondary mt-2">
+                                <i class="bi bi-arrow-clockwise"></i> Resend OTP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Enter New Email -->
+                    <div id="step2" class="mb-4" style="display: none;">
+                        <h6 class="mb-3 text-primary">
+                            <i class="bi bi-2-circle-fill me-1"></i>Step 2: Enter New Email
+                        </h6>
+                        <p class="text-muted small">Enter your new email address.</p>
+                        
+                        <div class="mb-3">
+                            <input type="email" id="newEmail" class="form-control" placeholder="Enter new email address">
+                        </div>
+                        
+                        <button onclick="sendOTPToNewEmail()" class="btn btn-primary">
+                            <i class="bi bi-envelope-fill me-1"></i> Send OTP to New Email
+                        </button>
+                        
+                        <div id="step2-otp" class="mt-3" style="display: none;">
+                            <div class="input-group">
+                                <input type="text" id="newOtp" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                                <button onclick="verifyNewEmailOTP()" class="btn btn-success">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Verify & Update
+                                </button>
+                            </div>
+                            <button onclick="sendOTPToNewEmail()" class="btn btn-sm btn-outline-secondary mt-2">
+                                <i class="bi bi-arrow-clockwise"></i> Resend OTP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Success Message -->
+                    <div id="successMessage" class="alert alert-success" style="display: none;">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <span id="successText"></span>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-success ms-2">
+                            Go to Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="alert alert-danger" style="display: none;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="errorText"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Send OTP to current email
+function sendOTPToCurrentEmail() {
+    fetch('{{ url_for("send_otp_current_email") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: ''
+    })
+    .then(response => response.text())
+    .then(data => {
+        if (data.includes('✅')) {
+            document.getElementById('step1-otp').style.display = 'block';
+            document.getElementById('currentOtp').focus();
+            hideMessages();
+        } else {
+            showError(data);
+        }
+    })
+    .catch(error => showError('Error: ' + error));
+}
+
+// Verify current email OTP
+function verifyCurrentEmailOTP() {
+    const otp = document.getElementById('currentOtp').value;
+    
+    fetch('{{ url_for("verify_current_email_otp") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'otp=' + encodeURIComponent(otp)
+    })
+    .then(response => response.text())
+    .then(data => {
+        if (data.includes('✅')) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('newEmail').focus();
+            hideMessages();
+        } else {
+            showError(data);
+        }
+    })
+    .catch(error => showError('Error: ' + error));
+}
+
+// Send OTP to new email
+function sendOTPToNewEmail() {
+    const newEmail = document.getElementById('newEmail').value;
+    
+    if (!newEmail) {
+        showError('Please enter a new email address');
+        return;
+    }
+    
+    fetch('{{ url_for("send_otp_new_email") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'new_email=' + encodeURIComponent(newEmail)
+    })
+    .then(response => response.text())
+    .then(data => {
+        if (data.includes('✅')) {
+            document.getElementById('step2-otp').style.display = 'block';
+            document.getElementById('newOtp').focus();
+            hideMessages();
+        } else {
+            showError(data);
+        }
+    })
+    .catch(error => showError('Error: ' + error));
+}
+
+// Verify new email OTP
+function verifyNewEmailOTP() {
+    const otp = document.getElementById('newOtp').value;
+    
+    fetch('{{ url_for("verify_new_email_otp") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'otp=' + encodeURIComponent(otp)
+    })
+    .then(response => response.text())
+    .then(data => {
+        if (data.includes('✅')) {
+            document.getElementById('step2').style.display = 'none';
+            showSuccess(data);
+        } else {
+            showError(data);
+        }
+    })
+    .catch(error => showError('Error: ' + error));
+}
+
+// Helper functions
+function showSuccess(message) {
+    document.getElementById('successText').textContent = message;
+    document.getElementById('successMessage').style.display = 'block';
+    document.getElementById('errorMessage').style.display = 'none';
+}
+
+function showError(message) {
+    document.getElementById('errorText').textContent = message;
+    document.getElementById('errorMessage').style.display = 'block';
+    document.getElementById('successMessage').style.display = 'none';
+}
+
+function hideMessages() {
+    document.getElementById('successMessage').style.display = 'none';
+    document.getElementById('errorMessage').style.display = 'none';
+}
+</script>
+{% endblock %}

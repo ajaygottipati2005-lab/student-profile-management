@@ -74,6 +74,12 @@ class PostgresRow:
     def keys(self):
         return self.columns
 
+    def get(self, key, default=None):
+        """Get a column value by key, returning default if key doesn't exist."""
+        if isinstance(key, str) and key in self.index:
+            return self.values[self.index[key]]
+        return default
+
 
 class PostgresCursor:
     def __init__(self, cursor):
@@ -202,22 +208,15 @@ def _create_tables(cursor):
         """
         CREATE TABLE IF NOT EXISTS admins (
             id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE,
-            email TEXT,
-            password TEXT
+            email TEXT UNIQUE,
+            otp TEXT,
+            otp_expiry TIMESTAMP
         )
         """
     )
 
-    _add_column_if_not_exists(cursor, "admins", "email", "TEXT")
-
-    cursor.execute(
-        """
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email
-        ON admins (email)
-        WHERE email IS NOT NULL
-        """
-    )
+    _add_column_if_not_exists(cursor, "admins", "otp", "TEXT")
+    _add_column_if_not_exists(cursor, "admins", "otp_expiry", "TIMESTAMP")
 
     cursor.execute(
         """
@@ -282,11 +281,11 @@ def _create_tables(cursor):
 def _seed_default_admin(cursor):
     cursor.execute(
         """
-        INSERT INTO admins (username, email, password)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (username) DO NOTHING
+        INSERT INTO admins (email)
+        VALUES (%s)
+        ON CONFLICT (email) DO NOTHING
         """,
-        ("admin", "admin@example.com", "admin123"),
+        ("ajaygottipati2005@gmail.com",),
     )
 
 
